@@ -1,10 +1,1287 @@
+      FUNCTION ANORM(A)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      DIMENSION A(3)
+      ANORM = SQRT(A(1)**2 + A(2)**2 + A(3)**2)
+      RETURN
+      END
+      SUBROUTINE BPRINT
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      CHARACTER*6      IAO2S,IAO2P,IAO3S,IAO3P
+      INTEGER SHELLA,SHELLN,SHELLT,SHELLC,AOS,SHLADF
+C
+C     COMMON/DATBAS/NTYBAS,NUMG,NTYPOL,NTYGD,NTYSPD,NBAMOD
+      COMMON/B/EXX(360),C1(360),C2(360),C3(360),X(90),Y(90),Z(90),
+     1         JAN(90),SHELLA(90),SHELLN(90),SHELLT(90),SHELLC(90),
+     2         AOS(90),NSHELL,MAXTYP
+      COMMON/BX/ AON(90)
+      COMMON /CHANEL/ IFILES(30)
+      DIMENSION SHLADF(90),C4(90)
+      EQUIVALENCE(C4(1),C3(91)),(SHLADF(1),C3(181))
+      EQUIVALENCE (ITAB,IFILES(18))
+      CHARACTER*10 IATOM(37), AP*1, PST*1, AON*6, SKIP1*1, STAR*1,
+     1 SKIP2*1, STAR2*1
+      COMMON /JOBNAM/ JOBNAM
+      CHARACTER*80 JOBNAM
+C
+C     COMMON/IO/IN,IOUT,IPUNCH
+C
+      COMMON/SCALE/SCALE(90)
+C     COMMON/IFBP/IFBP
+C
+      DIMENSION INCR(4,3)
+C
+      DATA IAO2S/'    2S'/,IAO2P/'    2P'/
+      DATA IAO3S/'    3S'/,IAO3P/'    3P'/
+      DATA THR1/1.0E-08/
+      DATA INCR/4*0,0,1,4,10,2*0,4,10/
+      DATA IATOM/
+     1'  HYDROGEN','    HELIUM','   LITHIUM',' BERYLLIUM','     BORON',
+     2'    CARBON','  NITROGEN','    OXYGEN','  FLUORINE','      NEON',
+     3'    SODIUM',' MAGNESIUM',' ALUMINIUM','   SILICON','PHOSPHORUS',
+     4'    SULFUR','  CHLORINE','     ARGON',' POTASSIUM','   CALCIUM',
+     5'  SCANDIUM','  TITANIUM','  VANADIUM','  CHROMIUM',' MANGANESE',
+     6'      IRON','    COBALT','    NICKEL','    COPPER','      ZINC',
+     7'   GALLIUM',' GERMANIUM','   ARSENIC','  SELENIUM','   BROMINE',
+     8'   KRYPTON','     BANQUO'/
+      DATA ZERO/0.0E0/,AP/' '/,PST/'*'/
+C
+   10 FORMAT(2H *,129(1H-),1H*)
+   20 FORMAT(2H *,A10,3F9.5,92X,1H*)
+   30 FORMAT(2A1,45X,I3,3X,A6,5X,F5.2,62X,A1)
+   40 FORMAT(2A1,41X,I3,1H-,I3,3X,A6,5X,F5.2,62X,A1)
+   50 FORMAT(2A1,69X,5E12.6,A1)
+   60 FORMAT(1X,131(1H*))
+   70 FORMAT(2H *,13X,13HATOMIC CENTER,13X,1H*,8X,14HATOMIC ORBITAL,
+     1 7X,1H*,21X,18HGAUSSIAN FUNCTIONS,20X,1H*)
+   80 FORMAT(2H *,39X,1H*,1X,8HFUNCTION,4X,5HSHELL,4X,5HSCALE,2X,1H*,59X
+     1,1H*)
+   90 FORMAT(2H *,4X,4HATOM,3X,7HX-COORD,2X,7HY-COORD,2X,7HZ-COORD,
+     1 3X,1H*,2X,6HNUMBER,5X,4HTYPE,5X,6HFACTOR,1X,1H*,2X,8HEXPONENT,
+     2 4X,6HS-COEF,6X,6HP-COEF,6X,6HD-COEF,6X,6HF-COEF,3X,1H*)
+  100 FORMAT(2H *,129X,1H*)
+  110 FORMAT(11H0THERE ARE ,I4,21H PRIMITIVE GAUSSIANS./)
+C
+C     TEST FOR PRINTING OF B-TABLE.
+C     IF( (KOP.EQ.2)
+C    $  .OR. (KOP.EQ.0.AND.IFBP.EQ.0) )
+C    $  GO TO 140
+               I=INDEX(JOBNAM,' ')-1
+               OPEN(UNIT=ITAB,FILE=JOBNAM(:I)//'.tab',
+     1        STATUS='UNKNOWN')
+      REWIND ITAB
+      WRITE(ITAB,60)
+      WRITE(ITAB,70)
+      WRITE(ITAB,60)
+      WRITE(ITAB,80)
+      WRITE(ITAB,90)
+      WRITE(ITAB,60)
+C
+      NPRIMS=0
+C
+C     COMMENCE LOOP OVER SHELLS.
+      DO 270 ISHELL=1,NSHELL
+C
+C     TEST FOR FIRST PASS THROUGH LOOP.  IN THE FIRST PASS,
+C     WE MUST PROCESS THE FIRST ATOM.
+         IF(ISHELL-1)120,130,120
+C
+C     NOT FIRST PASS, COMPUTE DIFF AND TEST FOR STEP TO NEW ATOM.
+  120    DIFF= ABS(X1-X(ISHELL))+ ABS(X2-Y(ISHELL))+ ABS(X3-Z(ISHELL))
+         IF(DIFF-THR1)190,190,130
+C
+C     STEP TO NEW ATOM.
+C     OBTAIN ATOMIC NUMBER AND TEST FOR BANQUO ATOM.
+  130    IA=JAN(ISHELL)
+C     IF (NTYBAS.LT.5.OR.NTYBAS.GE.7) GOTO 27
+         IF (AON(ISHELL).EQ.IAO2S) IA=JAN(ISHELL)+2
+         IF (AON(ISHELL).EQ.IAO2P) IA=JAN(ISHELL)+2
+         IF (AON(ISHELL).EQ.IAO3S) IA=JAN(ISHELL)+10
+         IF (AON(ISHELL).EQ.IAO3P) IA=JAN(ISHELL)+10
+  140    IF(IA)160,150,160
+  150    IA=37
+C     OBTAIN COORDINATES.
+  160    X1=X(ISHELL)
+         X2=Y(ISHELL)
+         X3=Z(ISHELL)
+C     DO NOT PRINT MINUS LINE IF ISHELL=1.
+         IF(ISHELL-1)180,180,170
+  170    WRITE(ITAB,10)
+C     PRINT ATOM NAME AND COORDINATES.
+  180    WRITE(ITAB,20)IATOM(IA),X1,X2,X3
+C     SET SKIP1 TO SUPPRESS LINE SKIPPING LATER ON.
+         SKIP1=AP
+         STAR=PST
+         ISKIP=0
+C
+C     PROCESSING FOR SHELL INFORMATION LINE.
+C     OBTAIN INDICES FOR NSTART INCREMENT.
+  190    I=SHELLT(ISHELL)+1
+         J=SHELLC(ISHELL)+1
+         IP=SHELLT(ISHELL+1)+1
+         JP=SHELLC(ISHELL+1)+1
+C
+C     OBTAIN NSTART AND NEND.
+C     NOTE THAT NSTART IS INCREMENTED ACCORDING TO THE SHELL TYPE AND
+C     SHELL CONSTRAINT.
+         NSTART=AOS(ISHELL)+INCR(I,J)
+         NEND=AOS(ISHELL+1)-1+INCR(IP,JP)
+         NDIFF=NEND-NSTART+1
+C     PRINT OF SHELL INFORMATION LINE DEPENDS ON WHETHER
+C     NSTART=NEND.
+         SCALEI=SCALE(ISHELL)
+         IF(NSTART-NEND)210,200,210
+  200    WRITE(ITAB,30)SKIP1,STAR,NSTART,AON(ISHELL),SCALEI,STAR
+         GO TO 220
+  210    WRITE(ITAB,40)SKIP1,STAR,NSTART,NEND,AON(ISHELL),SCALEI,STAR
+  220    SKIP1=AP
+         STAR=PST
+         ISKIP=1
+C
+C     OUTPUT THE GAUSSIAN FUNCTION INFORMATION.
+         NGAUSS=SHELLN(ISHELL)
+         I=SHELLA(ISHELL)-1
+         J=SHLADF(ISHELL)
+         DO 260 IGAUSS=1,NGAUSS
+            SKIP2=AP
+            STAR2=PST
+            IF(IGAUSS-1)240,230,240
+  230       SKIP2=AP
+            STAR2=PST
+C     CORRECT PRINTED EXPONENT.
+  240       EXXI=EXX(IGAUSS+I)/(SCALEI**2)
+            C3A=ZERO
+            C4A=ZERO
+            IF(J)260,260,250
+  250       C3A=C3(J)
+            C4A=C4(J)
+            J=J+1
+  260    WRITE(ITAB,50)SKIP2,STAR2,EXXI,C1(IGAUSS+I),C2(IGAUSS+I),C3A,
+     1 C4A,STAR2
+C
+  270 NPRIMS=NPRIMS+NDIFF*NGAUSS
+      WRITE(ITAB,60)
+      WRITE(ITAB,110) NPRIMS
+      WRITE(ITAB,60)
+C     GO TO 160
+C
+C     IN NO-PRINT MODE, MERELY DETERMINE THE NUMBER OF PRIMITIVE
+C     GAUSSIANS.
+C 140 NPRIMS=0
+C     DO 150 ISHELL=1,NSHELL
+C     I=SHELLT(ISHELL)+1
+C     J=SHELLC(ISHELL)+1
+C     IP=SHELLT(ISHELL+1)+1
+C     JP=SHELLC(ISHELL+1)+1
+C 150 NPRIMS=NPRIMS+((AOS(ISHELL+1)-1+INCR(IP,JP))
+C    $             -(AOS(ISHELL)+INCR(I,J))+1)*SHELLN(ISHELL)
+C
+  280 RETURN
+      END
+      SUBROUTINE CADIMA
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      INCLUDE 'SIZES'
+      INTEGER SHELLA,SHELLN,SHELLT,SHELLC,SHLADF,AOS
+      INTEGER SCONA,SCONB
+      INTEGER UBOUND,ULPURE
+      INTEGER SHELLX
+      CHARACTER*214 KEYWRD
+      COMMON /KEYWRD/ KEYWRD
+      COMMON /MOLKST/ NUMAT,NAT(NUMATM),NFIRST(NUMATM),NMIDLE(NUMATM),
+     1  NLAST(NUMATM),NORBS,NELECS,NALPHA,NBETA,NCLOSE,NOPEN
+      COMMON /VECTOR/ C(MORB2),EIGS(MAXORB),VECS(MORB2),EIGB(MAXORB)
+      COMMON /SCRACH/ RXYZ(MPACK)
+      COMMON /HMATRX/ H(MPACK)
+      COMMON /FOKMAT/ F(MPACK)
+      COMMON CXYZ(NUMATM,3),NATOMS,ICHARG,MULTIP,IAN(NUMATM),NAE,NBE,NE,
+     1NBASIS
+      COMMON/B/EXX(360),C1(360),C2(360),C3(360),X(90),Y(90),Z(90),
+     1         JAN(90),SHELLA(90),SHELLN(90),SHELLT(90),SHELLC(90),
+     2         AOS(90),NSHELL,MAXTYP
+      COMMON/MAX/LAMAX,LBMAX,LPMAX
+      COMMON/LIMIT/IMJ,ISTART,JSTART,IEND,JEND,IRANGE,JRANGE,LENTQ
+      COMMON/TYPE/ITYPE,JTYPE
+      COMMON/IA/LIND(151)
+      COMMON/CONST/ZERO
+C      COMMON/CONST/ZERO,HALF,ONE,ONEPT5,TWO,THREE,FOUR,TEN,F42
+      COMMON/TWOP/TWOPT2,EPI
+      COMMON/CFACT/PT5,R3OV2,ROOT3,ROOT5,ROOT15,R1,R2,R4,Z1,Z2,Z3
+      COMMON/CONTR/CA(20),CB(20)
+      COMMON/TWOC/TWOCX(9),TWOCY(9),TWOCZ(9)
+      COMMON/THREEC/XIP(16),YIP(16),ZIP(16),SX(36),SY(36),SZ(36)
+      COMMON/INTK/ZERO1,XINT(12)
+      COMMON/NEW/INEW,JNEW
+      COMMON/ORDER/NORDR(20),N6ORD(10),N5ORD(9),N10ORD(10),N7ORD(7),
+     1             LBOUND(4,3),UBOUND(4),ULPURE(4)
+      COMMON/BLOCK/SS(100),EEK(100),EEP(200)
+      COMMON/IPURE/IPURD,IPURF
+      COMMON/RYS/IOP1,IOP2
+      COMMON/T2W21E/LENT(4),LINDT(4),IADR(4),S(4),
+     1YCUT(4),T2(1030),W2(1030)
+      COMMON/INTCON/F6I,F20I,F100
+      COMMON/CC/CCX(112),CCY(112),CCZ(112)
+      COMMON/CSS/CSS(396)
+      COMMON/A/A(49)
+      COMMON/SDIM/IDIM,INC
+      COMMON/PDIM/INCP,IDIM2C,IDIMAA
+      COMMON/XYZ/XV(55,65),YV(55,65),ZV(55,65)
+      COMMON/BB/VALV(55,65),NPP,NY,IPR
+      COMMON/DEORT/SHELLX(90)
+C
+      DIMENSION SHLADF(90),C4(90)
+      DIMENSION TP(4),WP(4),FOC(150)
+      DIMENSION INDIX(20),INDIY(20),INDIZ(20),INDJX(20),INDJY(20),
+     1          INDJZ(20)
+      DIMENSION INDSX(20),INDSY(20),INDSZ(20)
+      DIMENSION IFPRT(8)
+      DIMENSION DA(11325),D(150,150),V(150,150)
+C
+      EQUIVALENCE(C4(1),C3(91)),(SHLADF(1),C3(181))
+      EQUIVALENCE (DA(1),D(1,1))
+C
+      DATA CUT1/-100.0E0/
+      DATA INDJX/1,2,1,1,3,1,1,2,2,1,4,1,1,2,3,3,2,1,1,2/
+      DATA INDJY/1,1,2,1,1,3,1,2,1,2,1,4,1,3,2,1,1,2,3,2/
+      DATA INDJZ/1,1,1,2,1,1,3,1,2,2,1,1,4,1,1,2,3,3,2,2/
+      DATA F15/15.0E0/
+      DATA IFPRT/0,1,2,0,0,1,1,2/
+C
+C     ASSIGN VALUES TO SEVERAL VARIABLES
+C
+      IPURD=0
+      IPURF=0
+      CCX(1)=1.E0
+      CCY(1)=1.E0
+      CCZ(1)=1.E0
+      ZERO1=0.E0
+      INCP=0
+      IDIM2C=7
+      IDIMAA=49
+      IDIM=6
+      INC=2
+      ZERO=0.E0
+      ONEPT5=1.5E0
+      TWO=2.E0
+      THREE=3.E0
+      TEN=10.E0
+      F42=42.E0
+      FOUR=4.E0
+      DO 10 I=1,12
+   10 XINT(I)=FLOAT(I)
+      F100=100.E0
+      F20=20.E0
+      PT5=0.5E0
+      IF (IPR.GT.1) GOTO 70
+C
+C     THE DENSITY MATRIX IS BUILT UP
+C
+      NMO=NE/2
+      DO 20 I=1,NMO
+   20 FOC(I)=TWO
+C
+C     EIGENVECTORS ARE DEORTHOGONALIZED AND STORED IN ARRAY V
+C     DEPENDING ON HT METHOD USED TO COMPUTE THE MEP
+C
+      CALL MULLIK (C,H,F,NORBS,VECS,RXYZ)
+      DO 30 I=1,NMO
+         DO 30 J=1,NORBS
+            IF (INDEX(KEYWRD,'ORT').NE.0) THEN
+               V(J,I)=C(J+NORBS*I-NORBS)
+            ELSE
+               V(J,I)=VECS(J+NORBS*I-NORBS)
+            END IF
+   30 CONTINUE
+      DO 50 I=1,NBASIS
+         DO 50 J=1,I
+            D(I,J)=ZERO
+            DO 40 K=1,NMO
+   40       D(I,J)=D(I,J)+FOC(K)*V(I,K)*V(J,K)
+            IF(I.NE.J)D(I,J)=TWO*D(I,J)
+   50 D(J,I)=D(I,J)
+C
+C     PLACES SYMMETRIC SQUARE ARRAY IN LINEAR FORM
+C
+C
+      K=1
+      DO 60 J=1,NBASIS
+         DO 60 I=1,J
+            DA(K)=D(I,J)
+   60 K=K+1
+   70 CONTINUE
+C
+C    *******************************************************************
+C     INITIALIZE THIS OVERLAY.
+C    *******************************************************************
+C
+      KOP1=6
+      KOP2=0
+      IOP1=KOP1
+      IOP2=KOP2
+      S(1)=0.25E0
+      S(2)=0.367006838E0
+      S(3)=0.180984215E0
+      S(4)=0.116432928E0
+      PI=FOUR* ATAN(1.D0)
+      TWOPI=PI+PI
+      ROOTPI= SQRT(PI)
+      PI3HAF=PI*ROOTPI
+C     /INTCON/ VARIABLES TO RPOLA.
+      F6I=1.D0/XINT(6)
+      F20I=1.D0/F20
+C
+      NTT=NBASIS*(NBASIS+1)/2
+C
+C     INITIALIZE /CFACT/.
+      ROOT3= SQRT(XINT(3))
+      R3OV2=0.5D0*ROOT3
+      ROOT5= SQRT(XINT(5))
+      ROOT15= SQRT(F15)
+      R1=PT5* SQRT(XINT(5)/XINT(2))
+      R2=XINT(3)/(XINT(2)*ROOT5)
+      R4=PT5* SQRT(XINT(3)/XINT(2))
+      Z1=XINT(4)/ROOT5
+      Z2=XINT(1)/ROOT5
+      Z3=XINT(3)/ROOT5
+C
+C     FILL INDS AND INDI.
+      DO 80 I=1,20
+         INDIX(I)=4*(INDJX(I)-1)
+         INDIY(I)=4*(INDJY(I)-1)
+         INDIZ(I)=4*(INDJZ(I)-1)
+         INDSX(I)=6*(INDJX(I)-1)
+         INDSY(I)=6*(INDJY(I)-1)
+         INDSZ(I)=6*(INDJZ(I)-1)
+   80 CONTINUE
+C
+C     CLEAR /TWOC/.
+      DO 90 I=1,9
+         TWOCZ(I)=ZERO
+         TWOCY(I)=ZERO
+   90 TWOCX(I)=ZERO
+C
+C     CLEAR /A/.
+      DO 100 I=1,49
+  100 A(I)=ZERO
+C
+C     CLEAR /CSS/.
+      ZERO2=ZERO
+      CSS(1)=1.D0
+      DO 110 I=2,396
+  110 CSS(I)=ZERO
+C
+C     CLEAR /THREEC/.
+      DO 120 I=1,16
+         ZIP(I)=ZERO
+         YIP(I)=ZERO
+  120 XIP(I)=ZERO
+      DO 130 I=1,36
+         SX(I)=ZERO
+         SY(I)=ZERO
+  130 SZ(I)=ZERO
+C
+C     CLEAR /CC/.
+      WORD=ZERO
+      DO 140 I=1,112
+         CCZ(I)=ZERO
+         CCY(I)=ZERO
+  140 CCX(I)=ZERO
+      CCX(1)=1.D0
+      CCY(1)=1.D0
+      CCZ(1)=1.D0
+C
+C     CLEAR /CONTR/.
+      DO 150 I=1,20
+         CA(I)=ZERO
+  150 CB(I)=ZERO
+C
+C     FILL COMMON /ORDER/
+C
+      UBOUND(1)=1
+      UBOUND(2)=4
+      UBOUND(3)=10
+      UBOUND(4)=20
+      ULPURE(1)=1
+      ULPURE(2)=4
+      ULPURE(3)=9
+      ULPURE(4)=17
+      LBOUND(1,1)=1
+      LBOUND(2,1)=1
+      LBOUND(3,1)=1
+      LBOUND(4,1)=1
+      LBOUND(1,2)=1
+      LBOUND(2,2)=2
+      LBOUND(3,2)=5
+      LBOUND(4,2)=11
+      LBOUND(1,3)=1
+      LBOUND(2,3)=1
+      LBOUND(3,3)=5
+      LBOUND(4,3)=11
+      DO 160 I=1,10
+  160 N6ORD(I)=I
+      DO 170 I=1,9
+  170 N5ORD(I)=I
+      DO 180 I=1,10
+  180 N10ORD(I)=I+10
+      DO 190 I=1,7
+  190 N7ORD(I)=I+10
+C
+C     INITIALIZE THE ORDERING VARIABLES USED BY FILMAT.
+C     THIS PIECE OF CODE MAY LOOK REDUNDANT, BUT HANG ON TO IT.
+C     ONE CAN USE THIS LOGIC TO ALTER THE ORDER OF THE BASIS FUNCTIONS.
+C     (IE. CHANGE THE ORDER OF THE SIX D-FUNCTIONES, ETC.)
+      IF(IPURD)220,200,220
+  200 DO 210 I=1,9
+  210 NORDR(I)=N5ORD(I)
+      GO TO 240
+  220 DO 230 I=1,10
+  230 NORDR(I)=N6ORD(I)
+  240 IF(IPURF)270,250,270
+  250 DO 260 I=1,7
+  260 NORDR(I+10)=N7ORD(I)
+      GO TO 290
+  270 DO 280 I=1,10
+  280 NORDR(I+10)=N10ORD(I)
+  290 CONTINUE
+C
+C     FILL INDEXING ARRAY FOR FILMAT AND LINOUT.
+C
+      NBASP=NBASIS+1
+      DO 300 I=1,NBASP
+  300 LIND(I)=(I*(I-1))/2
+C
+C    *******************************************************************
+C     LOOP OVER SHELLS.
+C    *******************************************************************
+C
+C     LOOP OVER ISHELL
+C
+      DO 390 ISHELL=1,NSHELL
+         INEW=ISHELL
+         XA=X(ISHELL)
+         YA=Y(ISHELL)
+         ZA=Z(ISHELL)
+         IGBEGN=SHELLA(ISHELL)
+         IGEND=IGBEGN+SHELLN(ISHELL)-1
+         NA=SHELLN(ISHELL)
+         ITYPE=SHELLT(ISHELL)
+         LAMAX=ITYPE+1
+         SCONA=SHELLC(ISHELL)
+         IEND=UBOUND(LAMAX)
+         ISTART=LBOUND(LAMAX,SCONA+1)
+         IRANGE=IEND-ISTART+1
+         IGDF=SHLADF(INEW)
+C
+C     LOOP OVER JSHELL.
+C
+         DO 390 JSHELL=1,ISHELL
+            JNEW=JSHELL
+            XB=X(JSHELL)
+            YB=Y(JSHELL)
+            ZB=Z(JSHELL)
+            JGBEGN=SHELLA(JSHELL)
+            JGEND=JGBEGN+SHELLN(JSHELL)-1
+            NB=SHELLN(JSHELL)
+            JTYPE=SHELLT(JSHELL)
+            LBMAX=JTYPE+1
+            SCONB=SHELLC(JSHELL)
+            JSTART=LBOUND(LBMAX,SCONB+1)
+            JEND=UBOUND(LBMAX)
+            JRANGE=JEND-JSTART+1
+            JGDF=SHLADF(JNEW)
+C
+C     OPTION TO COMPUTE MEP FOLLOWING REYNOLDS'S METHOD
+C
+            IF(INDEX(KEYWRD,'ORT').NE.0) THEN
+               IF(SHELLX(ISHELL).NE.SHELLX(JSHELL)) GOTO 390
+            END IF
+C
+            LPMAX=LAMAX+LBMAX-1
+            LENTQ=IRANGE*JRANGE
+            LIM1=LENTQ+100
+            IMJ=IABS(ISHELL-JSHELL)
+            NZERO=(ITYPE+JTYPE)/2+1
+            ABX=XB-XA
+            ABY=YB-YA
+            ABZ=ZB-ZA
+            RABSQ=ABX*ABX+ABY*ABY+ABZ*ABZ
+  310       CONTINUE
+C
+C    *******************************************************************
+C     LOOP OVER PRIMITIVE GAUSSIANS.
+C    *******************************************************************
+C
+            DO 380 IRET=1,NPP
+               DO 380 JRET=1,NY
+                  DO 320 I=1,LENTQ
+  320             EEP(I)=ZERO
+                  DO 370 IGAUSS=IGBEGN,IGEND
+                     AS=EXX(IGAUSS)
+                     ASXA=AS*XA
+                     ASYA=AS*YA
+                     ASZA=AS*ZA
+                     ARABSQ=AS*RABSQ
+                     CALL FILLC(ITYPE,IGBEGN,IGAUSS,IGDF,CA)
+C
+                     DO 370 JGAUSS=JGBEGN,JGEND
+                        BS=EXX(JGAUSS)
+                        CALL FILLC(JTYPE,JGBEGN,JGAUSS,JGDF,CB)
+C
+                        EP=AS+BS
+                        EPI=1.D0/EP
+                        TWOP=EP+EP
+                        ARG=-BS*ARABSQ*EPI
+                        PEXP=ZERO
+                        IF(ARG.GT.CUT1) PEXP=EXP(ARG)
+                        ZTEMP=TWOPI*EPI*PEXP
+                        PX=(ASXA+BS*XB)*EPI
+                        PY=(ASYA+BS*YB)*EPI
+                        PZ=(ASZA+BS*ZB)*EPI
+C
+                        XAP=PX-XA
+                        XBP=PX-XB
+                        YAP=PY-YA
+                        YBP=PY-YB
+                        ZAP=PZ-ZA
+                        ZBP=PZ-ZB
+C
+                        CALL GETCC1(CCX,XAP,XBP)
+                        CALL GETCC1(CCY,YAP,YBP)
+                        CALL GETCC1(CCZ,ZAP,ZBP)
+C
+C     ZERO ACCUMULATION AREA.
+C
+                        DO 330 I=100,LIM1
+  330                   EEP(I)=ZERO
+C
+C    *******************************************************************
+C     LOOP OVER ATOMS.
+C    *******************************************************************
+C
+C
+                        XC=XV(IRET,JRET)
+                        YC=YV(IRET,JRET)
+                        ZC=ZV(IRET,JRET)
+                        CIA= 1.D0
+                        ZT=ZTEMP*CIA
+                        PCX=XC-PX
+                        PCY=YC-PY
+                        PCZ=ZC-PZ
+                        RPCSQ=PCX*PCX+PCY*PCY+PCZ*PCZ
+                        ARG=EP*RPCSQ
+                        CALL RPOL1(NZERO,ARG,TP,WP)
+                        CALL GETA1(A)
+C
+C    *******************************************************************
+C     LOOP OVER ZEROES OF RYS POLYNOMIAL.
+C    *******************************************************************
+C
+                        DO 350 IZERO=1,NZERO
+C
+                           TWOPT2=TWOP*TP(IZERO)
+                           ZCONST=ZT*WP(IZERO)
+C
+                           CALL GET2C(TWOCX,PCX,1.D0,A)
+                           CALL GET2C(TWOCY,PCY,1.D0,A)
+                           CALL GET2C(TWOCZ,PCZ,ZCONST,A)
+C
+                           CALL GET3C(XIP,TWOCX,CCX)
+                           CALL GET3C(YIP,TWOCY,CCY)
+                           CALL GET3C(ZIP,TWOCZ,CCZ)
+C
+C    *******************************************************************
+C     LOOP OVER ATOMIC ORBITALS.
+C    *******************************************************************
+C
+                           INTC=100
+                           DO 340 I=ISTART,IEND
+C
+                              IX=INDIX(I)
+                              IY=INDIY(I)
+                              IZ=INDIZ(I)
+C
+                              DO 340 J=JSTART,JEND
+                                 JX=INDJX(J)
+                                 JY=INDJY(J)
+                                 JZ=INDJZ(J)
+C
+                                 INTC=INTC+1
+                                 EEP(INTC)=EEP(INTC)+XIP(IX+JX)*YIP(IY+J
+     1Y)*ZIP(IZ+JZ)
+C
+  340                      CONTINUE
+C     ... END OF AO LOOP.
+C
+  350                   CONTINUE
+C     ... END OF LOOP OVER RYS ZEROES.
+C
+                        INTC=0
+                        DO 360 I=ISTART,IEND
+                           IX=INDSX(I)
+                           IY=INDSY(I)
+                           IZ=INDSZ(I)
+                           DO 360 J=JSTART,JEND
+                              JX=INDJX(J)
+                              JY=INDJY(J)
+                              JZ=INDJZ(J)
+                              INTC=INTC+1
+C
+                              COEF=CA(I)*CB(J)
+  360                   EEP(INTC)=EEP(INTC)+EEP(INTC+100)*COEF
+C
+  370             CONTINUE
+C     ... END OF LOOP OVER GAUSSIANS.
+C
+C     FILMAT TAKES THE INTEGRALS IN EEP, EEK, AND SS, AND STORES THEM
+C     IN THE PROPER PLACES IN S, T, AND V.
+C
+                  CALL FILMAT(EEP,DA)
+  380       VALV(IRET,JRET)=VALV(IRET,JRET)-EEP(1)
+  390 CONTINUE
+C........ END OF LOOP OVER SHELLS.
+      RETURN
+      END
+      SUBROUTINE CAT(A,B)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      DIMENSION A(3,3)
+      DIMENSION B(3,3)
+      DIMENSION TEMP(3,3)
+      DO 20 I = 1,3
+         DO 10 J = 1,3
+            TEMP(I,J) = A(I,1)*B(1,J) + A(I,2)*B(2,J) + A(I,3)*B(3,J)
+   10    CONTINUE
+   20 CONTINUE
+      DO 40 I = 1,3
+         DO 30 J = 1,3
+            A(I,J) = TEMP(I,J)
+   30    CONTINUE
+   40 CONTINUE
+      RETURN
+      END
+      SUBROUTINE CCI(A,B,RA,RB,PERP,BASE,VECT,TRI)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+C
+C     ---- CIRCLE-CIRCLE INTERSECTION ----
+C
+      DIMENSION A(3), B(3)
+      DIMENSION PERP(3)
+      DIMENSION BASE(3)
+      DIMENSION VECT(3)
+      LOGICAL TRI
+      DIMENSION C(3),CU(3),C1V(3)
+      DO 10 K = 1,3
+         C(K) = B(K) - A(K)
+   10 CONTINUE
+      DAB = ANORM(C)
+C
+C     ----- IS IT A TRIANGLE? ----
+C
+      TRI = .TRUE.
+      IF (RA + RB .LE. DAB) TRI = .FALSE.
+      IF (RA + DAB .LE. RB) TRI = .FALSE.
+      IF (DAB + RB .LE. RA) TRI = .FALSE.
+      IF (.NOT. TRI) RETURN
+      CALL VNORM(C,CU)
+      C1 = 0.5 * (DAB + (RA**2 - RB**2)/DAB)
+      DO 20 K = 1,3
+         C1V(K) = C(K) * (C1/DAB)
+         BASE(K) = A(K) + C1V(K)
+   20 CONTINUE
+      V = SQRT(RA**2 - C1**2)
+      CALL CROSS(C,PERP,VECT)
+      CALL VNORM(VECT,VECT)
+      DO 30 K = 1,3
+         VECT(K) = VECT(K) * V
+   30 CONTINUE
+      RETURN
+      END
+      LOGICAL FUNCTION COLLI1(CW,RW,CNBR,RNBR,MNBR,NNBR,ISHAPE,
+     1JNBR,KNBR)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+C
+C     ----- COLLISION CHECK OF PROBE WITH NEIGHBORING ATOMS ---
+C
+      DIMENSION CW(3)
+      DIMENSION CNBR(3,200)
+      DIMENSION RNBR(200)
+      LOGICAL MNBR(200)
+      IF (NNBR .LE. 0) GO TO 20
+C
+C     ---- CHECK WHETHER PROBE IS TOO CLOSE TO ANY NEIGHBOR ----
+C
+      DO 10 I = 1, NNBR
+         IF (ISHAPE .GT. 1 .AND. I .EQ. JNBR) GO TO 10
+         IF (ISHAPE .EQ. 3 .AND. (I .EQ. KNBR .OR. .NOT. MNBR(I)))
+     1GO TO 10
+         SUMRAD = RW + RNBR(I)
+         VECT1 = ABS(CW(1) - CNBR(1,I))
+         IF (VECT1 .GE. SUMRAD) GO TO 10
+         VECT2 = ABS(CW(2) - CNBR(2,I))
+         IF (VECT2 .GE. SUMRAD) GO TO 10
+         VECT3 = ABS(CW(3) - CNBR(3,I))
+         IF (VECT3 .GE. SUMRAD) GO TO 10
+         SR2 = SUMRAD ** 2
+         DD2 = VECT1 ** 2 + VECT2 ** 2 + VECT3 ** 2
+         IF (DD2 .LT. SR2) GO TO 30
+   10 CONTINUE
+   20 CONTINUE
+      COLLI1 = .FALSE.
+      GO TO 40
+   30 CONTINUE
+      COLLI1 = .TRUE.
+   40 CONTINUE
+      RETURN
+      END
+      SUBROUTINE CONJ(H,G,GHGT)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      DIMENSION G(3,3)
+      DIMENSION H(3,3)
+      DIMENSION GHGT(3,3)
+      DIMENSION GT(3,3)
+C
+C     ----- INITIALIZE GHGT MATRIX TO IDENTITY
+C     CONCATENATE G H GT ----
+C
+      CALL IMATX(GHGT)
+      CALL CAT(GHGT,G)
+      CALL CAT(GHGT,H)
+      DO 20 K = 1,3
+         DO 10 L = 1,3
+            GT(K,L) = G(L,K)
+   10    CONTINUE
+   20 CONTINUE
+      CALL CAT(GHGT,GT)
+      RETURN
+      END
+      SUBROUTINE CROSS(A,B,C)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      DIMENSION A(3)
+      DIMENSION B(3)
+      DIMENSION C(3)
+      C(1) = A(2) * B(3) - A(3) * B(2)
+      C(2) = A(3) * B(1) - A(1) * B(3)
+      C(3) = A(1) * B(2) - A(2) * B(1)
+      RETURN
+      END
+      FUNCTION DET(A,B,C)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      DIMENSION A(3)
+      DIMENSION B(3)
+      DIMENSION C(3)
+      DIMENSION AB(3)
+      CALL CROSS(A,B,AB)
+      DET = DOT1(AB,C)
+      RETURN
+      END
+      FUNCTION DINTRP(TABLE)
+C
+C     --------------------------
+C     GAUSSIAN 76 (QCPE VERSION)
+C     DECEMBER 1977
+C     CONTROL DATA 7600
+C     --------------------------
+C
+C
+C***********************************************************************
+C     ROUTINE TO PERFORM EVERETT INTERPOLATION WITH THROW-BACK TO
+C     FOURTH ORDER USING TABLE.
+C***********************************************************************
+C
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      DIMENSION TABLE(M+6)
+C
+      COMMON/MTPC/  AT,BT,AP,BP,CM1,C0,C1,C2,M
+      EQUIVALENCE(CM2,BP),(C3,BT)
+C
+      X     =CM2*TABLE(M+1)+CM1*TABLE(M+2)+C0*TABLE(M+3)+C1*TABLE(M+4)+
+     1       C2*TABLE(M+5)+C3*TABLE(M+6)
+      DINTRP=X
+C
+      RETURN
+      END
+      FUNCTION DIST(A,B)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      DIMENSION A(3)
+      DIMENSION B(3)
+      DIST = SQRT((A(1)-B(1))**2 + (A(2)-B(2))**2 + (A(3)-B(3))**2)
+      RETURN
+      END
+      FUNCTION DOT1(A,B)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      DIMENSION A(3)
+      DIMENSION B(3)
+      DOT1 = A(1)*B(1) + A(2)*B(2) + A(3)*B(3)
+      RETURN
+      END
+      SUBROUTINE ERROR(NUMBER,INT,FLOAT)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+C
+      COMMON/IO/IN,IOUT,IPUNCH
+      DIMENSION LIST(15)
+      DATA LIST/110,120,130,140,150,160,170,
+     1210,320,440,480,720,760,830,850/
+C
+      DO 10 I = 1,15
+         IF (LIST(I) .EQ. NUMBER) GO TO 30
+   10 CONTINUE
+      WRITE (IOUT,20)
+   20 FORMAT('ERROR OF UNIDENTIFIABLE TYPE')
+      CALL MOPEND
+   30 CONTINUE
+C
+      GO TO (40,60,80,100,120,140,160,180,200,220,240,
+     1260,280,300,320) I
+C
+   40 WRITE (IOUT,50) NUMBER,FLOAT
+   50 FORMAT('ERROR',I5,2X,'NEGATIVE SURFACE POINT DENSITY: ',F10.5)
+      CALL MOPEND
+   60 WRITE (IOUT,70) NUMBER,FLOAT
+   70 FORMAT('ERROR',I5,2X,'NEGATIVE PROBE RADIUS:',F10.5)
+      CALL MOPEND
+   80 WRITE (IOUT,90) NUMBER,INT
+   90 FORMAT('ERROR',I5,2X,'TOO FEW OR TOO MANY ATOM TYPES:',I5)
+      CALL MOPEND
+  100 WRITE (IOUT,110) NUMBER,FLOAT,INT
+  110 FORMAT('ERROR',I5,2X,'NEGATIVE ATOM RADIUS:',F10.5,' ATOM',I5)
+      CALL MOPEND
+  120 WRITE (IOUT,130) NUMBER,INT
+  130 FORMAT('ERROR',I5,2X,'TOO MANY ATOMS:',I5)
+      CALL MOPEND
+  140 WRITE (IOUT,150) NUMBER,INT
+  150 FORMAT('ERROR',I5,2X,
+     1'INVALID SURFACE REQUEST NUMBER FOR ATOM:',I5)
+      CALL MOPEND
+  160 WRITE (IOUT,170) NUMBER,INT
+  170 FORMAT('ERROR',I5,2X,'INVALID ATOM TYPE FOR ATOM:',I5)
+      CALL MOPEND
+  180 WRITE (IOUT,190) NUMBER,INT
+  190 FORMAT('ERROR',I5,2X,'TOO MANY NEIGHBORS:',I5)
+      CALL MOPEND
+  200 WRITE (IOUT,210) NUMBER,INT
+  210 FORMAT('ERROR',I5,2X,'TOO MANY POINTS FOR REENTRANT PROBE:',I5)
+      CALL MOPEND
+  220 WRITE (IOUT,230) NUMBER,INT
+  230 FORMAT('ERROR',I5,2X,'TOO MANY POINTS FOR ARC:',I5)
+      CALL MOPEND
+  240 WRITE (IOUT,250) NUMBER,INT
+  250 FORMAT('ERROR',I5,2X,'TOO MANY POINTS FOR REENTRANT PROBE:',I5)
+      CALL MOPEND
+  260 WRITE (IOUT,270) NUMBER,INT
+  270 FORMAT('ERROR',I5,2X,'TOO MANY YON WATERS:',I5)
+      CALL MOPEND
+  280 WRITE (IOUT,290) NUMBER,INT
+  290 FORMAT('ERROR',I5,2X,'TOO MANY VICTIM WATERS:',I5)
+      CALL MOPEND
+  300 WRITE (IOUT,310) NUMBER,INT
+  310 FORMAT('ERROR',I5,2X,'TOO MANY EATERS:',I5)
+      CALL MOPEND
+  320 WRITE (IOUT,330) NUMBER,INT
+  330 FORMAT('ERROR',I5,2X,'TOO MANY EATERS:',I5)
+      CALL MOPEND
+      END
+      SUBROUTINE FILLC(IT,IGBEG,IGSP,IGDF,CA)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      INTEGER SHELLA,SHELLN,SHELLT,SHELLC,SHLADF,AOS
+C
+C     --------------------------
+C     GAUSSIAN 76 (QCPE VERSION)
+C     DECEMBER 1977
+C     CONTROL DATA 7600
+C     --------------------------
+C
+C
+C***********************************************************************
+C     ROUTINE TO OBTAIN S, P, D, AND F COEFFICIENTS FOR /B/.
+C***********************************************************************
+C
+      DIMENSION CA(20)
+      COMMON/B/EXX(360),C1(360),C2(360),C3(360),X(90),Y(90),Z(90),
+     1         JAN(90),SHELLA(90),SHELLN(90),SHELLT(90),SHELLC(90),
+     2         AOS(90),NSHELL,MAXTYP
+      DIMENSION C4(90),SHLADF(90)
+      EQUIVALENCE(C4(1),C3(91)),(SHLADF(1),C3(181))
+      COMMON/CFACT/PT5,R3OV2,ROOT3,ROOT5,ROOT15,R1,R2,R4,Z1,Z2,Z3
+C
+C     TEST FOR F-FUNCTIONS.
+      IF(IT-3)10,40,40
+C
+C     NO F-FUNCTIONS ARE INVOLVED, FILL ONLY THE FIRST 10 LOCATIONS
+C     IN CA.
+   10 CA(1)=C1(IGSP)
+C
+C     TEST FOR BEYOND S.
+      IF(IT)50,50,20
+C
+C     FILL P-PART.
+   20 CA(2)=C2(IGSP)
+      CA(3)=C2(IGSP)
+      CA(4)=C2(IGSP)
+C
+C     TEST FOR BEYOND P.
+      IF(IT-1)50,50,30
+C
+C     FILL D-PART, AND WATCH OUT FOR NORMALIZATION.
+C     INDDF PROVIDES INDEXING WHEN ADDED TO IGDF.
+   30 INDDF=IGDF+(IGSP-IGBEG)
+      CA( 5)=C3(INDDF)
+      CA( 6)=C3(INDDF)
+      CA( 7)=C3(INDDF)
+      TEMP=C3(INDDF)*ROOT3
+      CA( 8)=TEMP
+      CA( 9)=TEMP
+      CA(10)=TEMP
+      GO TO 50
+C
+C     FILL F-PART.
+C     INDDF PROVIDES INDEXING INTO C4.
+   40 INDDF=IGDF+(IGSP-IGBEG)
+      CA(11)=C4(INDDF)
+      CA(12)=C4(INDDF)
+      CA(13)=C4(INDDF)
+      TEMP=C4(INDDF)*ROOT5
+      CA(14)=TEMP
+      CA(15)=TEMP
+      CA(16)=TEMP
+      CA(17)=TEMP
+      CA(18)=TEMP
+      CA(19)=TEMP
+      CA(20)=C4(INDDF)*ROOT15
+C
+   50 RETURN
+      END
+      SUBROUTINE FILMAT(F,A)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      INTEGER AOS,SHELLA,SHELLN,SHELLT,SHELLC
+      INTEGER UBOUND,ULPURE
+C
+C     --------------------------
+C     GAUSSIAN 76 (QCPE VERSION)
+C     DECEMBER 1977
+C     CONTROL DATA 7600
+C     --------------------------
+C
+      DIMENSION F(*),A(*)
+      COMMON/IPURE/IPURD,IPURF
+      COMMON/MAX/LAMAX,LBMAX,LPMAX
+      COMMON/LIMIT/IMJ,ISTART,JSTART,IEND,JEND,IRANGE,JRANGE,LENTQ
+      COMMON/NEW/INEW,JNEW
+      COMMON/B/EXX(360),C1(360),C2(360),C3(360),X(90),Y(90),Z(90),
+     1         JAN(90),SHELLA(90),SHELLN(90),SHELLT(90),SHELLC(90),
+     2         AOS(90),NSHELL,MAXTYP
+      COMMON/ORDER/NORDR(20),N6ORD(10),N5ORD(9),N10ORD(10),N7ORD(7),
+     1             LBOUND(4,3),UBOUND(4),ULPURE(4)
+      COMMON/IA/LIND(151)
+C
+C
+C***********************************************************************
+C     THIS ROUTINE FILLS THE LOWER TRIANGULAR MATRIX A (IN LINEAR FORM)
+C     THIS ROUTINE RECEIVES AS INPUT THE SHELL NUMBERS (INEW,JNEW),
+C     SHELL DUPLICATE TEST VARIABLE (IMJ), LIMITING INFORMATION (VIA
+C     /LIMIT/), AND ADDRESSES OF SHELLS VIA /B/, AND PERFORMS MATRIX
+C     BUILDING.
+C     IF NECESSARY, PURDF1 IS CALLED TO TRANSFORM TO PURE D OR PURE F.
+C***********************************************************************
+C
+C
+C     NOTE THAT IEND, JEND, IRANGE AND JRANGE MAY BE MODIFIED BY PURDF1.
+      CALL PURDF1(F)
+      SUM=0.E0
+C
+C     COMMENCE MAIN PROCESSING LOOP.
+C     HERE, THE CORRECT INDICES ARE OBTAINED, REFERRED TO LOWER
+C     TRIANGULAR FORM, AND THE MATRIX ELEMENTS ARE PLANTED IN A.
+C     ALSO, SHELL DUPLICATE ELIMINATION IS PERFORMED HERE.
+C     ORDERING IS ACHIEVED THROUGH NORDR.
+C
+C     OBTAIN CORRECT BIAS FOR J-LOOP.
+   10 INDX1=0
+C     OBTAIN CORRECT ATOMIC ORBITAL STARTING VALUES.
+      IST=AOS(INEW)-1
+      JST=AOS(JNEW)-1
+C     COMMENCE LOOP.
+      DO 90 I=ISTART,IEND
+         IX=NORDR(I)
+         IF(IMJ)30,20,30
+   20    JEND=I
+   30    INTC=INDX1
+         DO 80 J=JSTART,JEND
+            INTC=INTC+1
+            JX=NORDR(J)
+C     OBTAIN RAW INDICES.
+            II=IX+IST
+            JJ=JX+JST
+C     OBTAIN FULL MATRIX INDEX.
+            IF(II-JJ)60,40,50
+C     EQUAL.
+   40       INDFM=LIND(II+1)
+            GO TO 70
+C     II GREATER.
+   50       INDFM=LIND(II)+JJ
+            GO TO 70
+C     JJ GREATER.
+   60       INDFM=LIND(JJ)+II
+C
+C     PLANT THE VALUE.
+   70       SUM=A(INDFM)*F(INTC)+SUM
+   80    CONTINUE
+   90 INDX1=INDX1+JRANGE
+C
+C
+C     RESTORE IEND, JEND, IRANGE, AND JRANGE.
+      IEND=UBOUND(LAMAX)
+      JEND=UBOUND(LBMAX)
+      IRANGE=IEND-ISTART+1
+      JRANGE=JEND-JSTART+1
+      F(1)=SUM
+      RETURN
+      END
+      SUBROUTINE GENUNT(U,N)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+C
+C     ---- GENERATE UNIT VECTORS OVER SPHERE ----
+C
+      DIMENSION U(3,N)
+      NEQUAT = SQRT(N * 3.14159)
+      NVERT = 0.5 * NEQUAT
+      NU = 0
+      DO 20 I = 1,NVERT+1
+         FI = (3.14159 * (I-1)) / NVERT
+         Z = COS(FI)
+         XY = SIN(FI)
+         NHOR = NEQUAT * XY
+         IF (NHOR .LT. 1) NHOR = 1
+         DO 10 J = 1,NHOR
+            FJ = (2 * 3.14159 * (J-1)) / NHOR
+            X = COS(FJ) * XY
+            Y = SIN(FJ) * XY
+            IF (NU .GE. N) GO TO 30
+            NU = NU + 1
+            U(1,NU) = X
+            U(2,NU) = Y
+            U(3,NU) = Z
+   10    CONTINUE
+   20 CONTINUE
+   30 CONTINUE
+      N = NU
+      RETURN
+      END
+      SUBROUTINE GET2C(TWOC,X,CONST,A)
+C
+C     --------------------------
+C     GAUSSIAN 76 (QCPE VERSION)
+C     DECEMBER 1977
+C     CONTROL DATA 7600
+C     --------------------------
+C
+C
+C    *******************************************************************
+C
+C          THIS SUBROUTINE FORMS THE TWO CENTER INTEGRALS IN TWOC.  THE
+C     FUNCTIONS G ARE FORMED FROM X AND CONST USING G(1) = CONST, AND
+C     THE RECURSION FORMULA0
+C
+C          G(IV) = TWOPT2*(X*G(IV-1) - (IV-2)*G(IV-2))
+C
+C     THE TWO CENTER INTEGRALS ARE THEN FORMED USING THE COEFFICIENTS
+C     IN A, WHICH WERE FORMED IN SUBROUTINE GETA1.
+C
+C    *******************************************************************
+C
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      COMMON/INTK/ZERO,XINT(12)
+      COMMON/MAX/LAMAX,LBMAX,LPMAX
+      COMMON/TWOP/TWOPT2,EPI
+      COMMON/PDIM/INCP,IDIM2C,IDIMAA
+C
+      DIMENSION TWOC(*),A(*)
+      DIMENSION G(9)
+C
+C     CALCULATE THE G FUNCTIONS.
+C
+      LPNEW=LPMAX+INCP
+      G(1)=CONST
+      G(2)=TWOPT2*X*G(1)
+      DO 10 I=3,9
+   10 G(I)=ZERO
+      IF(LPNEW.LE.2) GO TO 30
+      DO 20 IV=3,LPNEW
+C
+   20 G(IV)=TWOPT2*(X*G(IV-1)-XINT(IV-2)*G(IV-2))
+C
+C     NOW EVALUATE THE TWO CENTER INTEGRALS USING G AND A.
+C
+   30 DO 50 LP=1,LPNEW
+         INDA=IDIM2C*(LP-1)
+         Y=ZERO
+         DO 40 IV=1,LP
+   40    Y=Y+A(INDA+IV)*G(IV)
+   50 TWOC(LP)=Y
+C
+      RETURN
+      END
+      SUBROUTINE GET3C(VALIP,TWOC,CC)
+C
+C     --------------------------
+C     GAUSSIAN 76 (QCPE VERSION)
+C     DECEMBER 1977
+C     CONTROL DATA 7600
+C     --------------------------
+C
+C
+C    *******************************************************************
+C
+C          THIS SUBROUTINE TRANSFORMS THE INTEGRALS OVER FUNCTIONS AT
+C     CENTER P, WHICH ARE NOW STORED IN TWOC, INTO THE INTEGRALS
+C     OVER FUNCTIONS CENTERED AT A AND B.  THESE ARE TO BE STORED IN
+C     VALIP.  THE COEFFICIENTS CC WERE FORMED IN SUBROUTINE GETCC1,
+C     AND THE INTEGRALS OVER FUNCTIONS AT P WERE FORMED IN EITHER
+C     GET2C OR GETEFG, DEPENDING UPON WHICH INTEGRALS ARE BEING
+C     TRANSFORMED.
+C
+C          THE MATRIX IS OF DIMENSION VALIP(4,4) AND IS FILLED TO
+C     (LBMAX,LAMAX), ALTHOUGH THE INDEXING IS DONE LINEARLY.
+C
+C    *******************************************************************
+C
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      COMMON/MAX/LAMAX,LBMAX,LPMAX
+      COMMON/CONST/ZERO
+      COMMON/PDIM/INCP,IDIM2C,IDIMAA
+C
+      DIMENSION CC(*),VALIP(*)
+      DIMENSION TWOC(*)
+C
+      DO 20 LA=1,LAMAX
+         INDCA=28*(LA-1)
+         INDIP=4*(LA-1)
+         DO 20 LB=1,LBMAX
+            INDC=INDCA+7*(LB-1)
+            LWMAX=LA+LB-1
+            Y=ZERO
+            DO 10 LW=1,LWMAX
+   10       Y=Y+CC(INDC+LW)*TWOC(LW)
+   20 VALIP(INDIP+LB)=Y
+      RETURN
+      END
+      SUBROUTINE GETA1(A)
+C
+C     --------------------------
+C     GAUSSIAN 76 (QCPE VERSION)
+C     DECEMBER 1977
+C     CONTROL DATA 7600
+C     --------------------------
+C
+C
+C
+C    *******************************************************************
+C
+C          THIS SUBROUTINE CALCULATES THE COEFFICIENTS WHICH TRANSFORM
+C     THE FUNCTIONS G(IV) INTO THE TWO CENTER INTEGRALS.  THIS
+C     TRANSFORMATION IS CARRIED OUT IN SUBROUINTE GET2C, WHICH SHOULD
+C     BE CONSULTED FOR MORE DETAILS OF THE USE OF THESE COEFFICIENTS.
+C
+C          THE A MATRIX IS OF DIMENSION A(IDIM,IDIM), ALTHOUGH THE
+C     ACTUAL INDEXING IS DONE LINEARLY.  IDIM IS 7 IN LINK 302 (STVINT)
+C     AND 9 IN LINK 701 (PROP1E).  THE COEFFICIENTS ARE CALCULATED
+C     FROM A(1,1)=1.0, AND THE RECURSION FORMULA0
+C
+C          A(LV,LP+1) = (A(LV,LP-1)*(LP-1) + A(LV-1,LP))/(2*P)
+C
+C    *******************************************************************
+C
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      DIMENSION A(*)
+C
+      COMMON/MAX/LAMAX,LBMAX,LPMAX
+      COMMON/PDIM/INCP,IDIM,LENG
+      COMMON/TWOP/TWOPT2,EPI
+      COMMON/CONST/ZERO
+      COMMON/INTK/ZERO1,XINT(12)
+C
+      LPNEW=LPMAX+INCP
+      PP=0.5D0*EPI
+      A(1)=1.D0
+      A(IDIM+2)=PP
+      IF(LPNEW.LE.2) GO TO 20
+      DO 10 LP=3,LPNEW
+         INDLP=IDIM*(LP-1)
+         ILPM1=INDLP-IDIM-1
+         ILPM2=ILPM1-IDIM+1
+         LPM2=LP-2
+         DO 10 LV=1,LP
+C
+   10 A(INDLP+LV)=PP*(XINT(LPM2)*A(ILPM2+LV)+A(ILPM1+LV))
+C
+   20 CONTINUE
+      RETURN
+      END
+      SUBROUTINE GETCC1(CC,AP,BP)
+C
+C     --------------------------
+C     GAUSSIAN 76 (QCPE VERSION)
+C     DECEMBER 1977
+C     CONTROL DATA 7600
+C     --------------------------
+C
+C
+C    *******************************************************************
+C
+C          THIS SUBROUTINE CALCULATES THE COEFFICIENTS WHICH TRANSFORM
+C     THE TWO CENTER INTEGRALS INTO THE THREE CENTER INTEGRALS.  THIS
+C     TRANSFORMATION IS CARRIED OUT IN SUBROUTINE GET3C, WHICH SHOULD
+C     BE CONSULTED FOR MORE DETAILS OF THE USE OF THESE COEFFICIENTS.
+C
+C          THE COEFFICIENT MATRIX IS THREE DIMENSIONAL, ALTHOUGH THE
+C     ACTUAL INDEXING IS DONE LINEARLY.  THE COEFFICIENTS ARE
+C     CALCULATED FROM CC(1,1,1)=1.0, AND THE RECURSION FORMULAE0
+C
+C          CC(LW,LB,LA) = AP*CC(LW,LB,LA-1) + CC(LW-1,LB,LA-1)
+C
+C          CC(LW,LB,LA) = BP*CC(LW,LB-1,LA) + CC(LW-1,LB-1,LA)
+C
+C    *******************************************************************
+C
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      COMMON/MAX/LAMAX,LBMAX,LPMAX
+      COMMON/CONST/ZERO
+      DIMENSION CC(112)
+C
+      DO 50 LA=1,LAMAX
+         INDA=28*(LA-1)
+         DO 50 LB=1,LBMAX
+            IND=INDA+7*(LB-1)
+            LWMAX=LA+LB-1
+            DO 50 LW=1,LWMAX
+               IF(LA-1)30,30,10
+   10          LWM1=IND+LW-29
+               IF(LWM1.GT.0) GO TO 20
+               CC(IND+LW)=AP*CC(IND+LW-28)
+               GO TO 50
+   20          CC(IND+LW)=AP*CC(IND+LW-28)+CC(LWM1)
+               GO TO 50
+   30          IF(LB.EQ.1) GO TO 50
+               LWM1=IND+LW-8
+               IF(LWM1.GT.0) GO TO 40
+               CC(IND+LW)=BP*CC(IND+LW-7)
+               GO TO 50
+   40          CC(IND+LW)=BP*CC(IND+LW-7)+CC(LWM1)
+   50 CONTINUE
+      RETURN
+      END
+      SUBROUTINE IMATX(A)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      DIMENSION A(3,3)
+      DO 20 I = 1,3
+         DO 10 J = 1,3
+            A(I,J) = 0.0
+   10    CONTINUE
+         A(I,I) = 1.0
+   20 CONTINUE
+      RETURN
+      END
       SUBROUTINE LDIMA
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       INCLUDE 'SIZES'
-      REAL*8 IAO1S,IAO2S,IAO2P,IAO3S,IAO3P
-      REAL*8 IAO4S,IAO4P,IAO5S,IAO5P,IAO6S
-      REAL*8 IAO6P,IAO7S,IAO7P
-      INTEGER*2 NUMBER,ISCE
+      CHARACTER*6  IAO1S,IAO2S,IAO2P,IAO3S,IAO3P,
+     1             IAO4S,IAO4P,IAO5S,IAO5P,IAO6S, IAO6P,IAO7S,IAO7P
       INTEGER SHELLA,SHELLN,SHELLT,SHELLC,SHLADF,AOS
       INTEGER SHELLX
       CHARACTER*214 KEYWRD
@@ -17,12 +1294,16 @@ C     ---------------
      1  NLAST(NUMATM),NORBS,NELECS,NALPHA,NBETA,NCLOSE,NOPEN
       COMMON /GEOM  / GEO(3,NUMATM)
       COMMON /CORE  / CORE(107)
+      COMMON /FUNCON/ FPC(2,10),IFPC
+      COMMON /JOBNAM/ JOBNAM
+      COMMON /CHANEL/ IFILES(30)
       COMMON /EXPONT/ ZS(107),ZP(107),ZD(107)
       COMMON C(NUMATM,3),NATOMS,ICHARG,MULTIP,IAN(NUMATM),NAE,NBE,NE,
      1NBASIS
       COMMON/B/EXX(360),C1(360),C2(360),C3(360),X(90),Y(90),Z(90),
-     $         JAN(90),SHELLA(90),SHELLN(90),SHELLT(90),SHELLC(90),
-     $         AOS(90),AON(90),NSHELL,MAXTYP
+     1         JAN(90),SHELLA(90),SHELLN(90),SHELLT(90),SHELLC(90),
+     2         AOS(90),NSHELL,MAXTYP
+      COMMON /BX/ AON(90)
       COMMON/SCALE/SCALE(90)
       COMMON/IAOS/IAOS(90)
       COMMON/BB/ VALV(55,65),NPP,NY,IPR
@@ -37,30 +1318,35 @@ C    * IPLOCH(1500),AS(1500),STOT,VOL,NSF,NC(NUMATM)
       COMMON/MSTXYZ/XV1(3575),YV1(3575),ZV1(3575),NTS
       COMMON/XYZ/XV(55,65),YV(55,65),ZV(55,65)
       COMMON/DEORT/SHELLX(90)
+      CHARACTER*6 AON
       DIMENSION CC(3,NUMATM)
-      DIMENSION E(6),CS(6),CP(6),CD(6)
       DIMENSION OVRLAP(4)
       DIMENSION IDIF(55,65),VWXYZ(3,3600)
       DIMENSION SHLADF(90),C4(90)
+      CHARACTER  JOBNAM*80
 C     DIMENSION SCR1(10726)
       EQUIVALENCE(C4(1),C3(91)),(SHLADF(1),C3(181))
       EQUIVALENCE(OVRF,OVRLAP(4))
       EQUIVALENCE(OVRS,OVRLAP(1)),(OVRP,OVRLAP(2)),(OVRD,OVRLAP(3))
-      DATA CONV /627.537E0/
+      EQUIVALENCE(IPOT,IFILES(18)),(IMEP,IFILES(15))
       DATA ZERO/0.0E0/,ONE/1.0E0/,TWO/2.0E0/,THREE/3.0E0/
       DATA PT75/0.75E0/,ONPT75/1.75E0/,ONPT25/1.25E0/,TWOPT5/2.5E0/
       DATA THRPT5/3.5E0/,FOUR/4.0E0/,TWPT25/2.25E0/,F15/15.0E0/
       DATA FORPT5/4.5E0/,THRSH/0.1E-04/,TENM6/1.0E-06/
       DATA ONEPT5/1.5E0/
       DATA RONE/1.0/
-      DATA IAO1S/6H    1S/
-      DATA IAO2S/6H    2S/,IAO2P/6H    2P/
-      DATA IAO3S/6H    3S/,IAO3P/6H    3P/
-      DATA IAO4S/6H    4S/,IAO4P/6H    4P/
-      DATA IAO5S/6H    5S/,IAO5P/6H    5P/
-      DATA IAO6S/6H    6S/,IAO6P/6H    6P/
-      DATA IAO7S/6H    7S/,IAO7P/6H    7P/
-C
+      DATA IAO1S/'    1S'/
+      DATA IAO2S/'    2S'/,IAO2P/'    2P'/
+      DATA IAO3S/'    3S'/,IAO3P/'    3P'/
+      DATA IAO4S/'    4S'/,IAO4P/'    4P'/
+      DATA IAO5S/'    5S'/,IAO5P/'    5P'/
+      DATA IAO6S/'    6S'/,IAO6P/'    6P'/
+      DATA IAO7S/'    7S'/,IAO7P/'    7P'/
+      CONV=FPC(IFPC,4)*FPC(IFPC,9)
+      RECPA0=1.D0/FPC(IFPC,3)
+      I=INDEX(JOBNAM,' ')-1
+      OPEN(UNIT=IW,FILE=JOBNAM(:I)//'.out',STATUS='UNKNOWN')
+      REWIND IW
 C     TRANSFORM SEVERAL VARIABLES
 C
       NATOMS=NUMAT
@@ -68,19 +1354,19 @@ C
       NBE=NBETA
       NE=NELECS
       SUM=0.5D00
-      DO 9 I=1,NATOMS
-9     SUM=SUM+CORE(NAT(I))
+      DO 10 I=1,NATOMS
+   10 SUM=SUM+CORE(NAT(I))
       I=SUM
       ICHARG=I-NCLOSE-NOPEN-NALPHA-NBETA
 C
 C     PUT CARTESIAN COORDINATES IN ARRAY C
 C
       CALL GMETRY(GEO,CC)
-      DO 998 I=1,NUMAT
-      DO 998 J=1,3
-      C(I,J)=CC(J,I)
-      C(I,J)=C(I,J)*1.8897626D00
-998   CONTINUE
+      DO 20 I=1,NUMAT
+         DO 20 J=1,3
+            C(I,J)=CC(J,I)
+            C(I,J)=C(I,J)*RECPA0      
+   20 CONTINUE
 C
 C     SET UP A STO-4G BASIS ADAPTED TO MOPAC-STO'S.
 C     COMMON /B/ IS FILLED
@@ -90,458 +1376,458 @@ C
       NSHELL=0
       NGAUSS=4
       NSTART=1
-      DO 203 I=1,NATOMS
-      IAN(I)=NAT(I)
+      DO 220 I=1,NATOMS
+         IAN(I)=NAT(I)
 C***********************************************************************
 C        1S SHELL (CONVERTED IN STO-4G, EACH GTO WITH NG=1
 C***********************************************************************
-      IA=IAN(I)
-      IF (IA-2) 301,301,302
- 301  J1=MM
-      EXX(J1)=(ZS(IA)**2)*13.11790
-      C1(J1)=0.019508
-      C2(J1)=ZERO
-      EXX(J1+1)=(ZS(IA)**2)*1.97108
-      C1(J1+1)=0.137622
-      C2(J1+1)=ZERO
-      EXX(J1+2)=(ZS(IA)**2)*0.444645
-      C1(J1+2)=0.479541
-      C2(J1+2)=ZERO
-      EXX(J1+3)=(ZS(IA)**2)*0.121676
-      C1(J1+3)=0.500553
-      C2(J1+3)=ZERO
-      NSHELL=NSHELL+1
-      X(NSHELL)=C(I,1)
-      Y(NSHELL)=C(I,2)
-      Z(NSHELL)=C(I,3)
-      JAN(NSHELL)=CORE(NAT(I))
-      SHELLA(NSHELL)=MM
-      SHLADF(NSHELL)=0
-      SHELLN(NSHELL)=NGAUSS
-      SHELLT(NSHELL)=0
-      SHELLC(NSHELL)=2
-      SHELLX(NSHELL)=I
-      SCALE(NSHELL)=RONE
-      AON(NSHELL)=IAO1S
-      AOS(NSHELL)=NSTART
-      IAOS(NSHELL)=NSTART
-      NSTART=NSTART+1
-      MM=MM+NGAUSS
-      GOTO 203
+         IA=IAN(I)
+         IF (IA-2) 30,30,40
+   30    J1=MM
+         EXX(J1)=(ZS(IA)**2)*13.11790
+         C1(J1)=0.019508
+         C2(J1)=ZERO
+         EXX(J1+1)=(ZS(IA)**2)*1.97108
+         C1(J1+1)=0.137622
+         C2(J1+1)=ZERO
+         EXX(J1+2)=(ZS(IA)**2)*0.444645
+         C1(J1+2)=0.479541
+         C2(J1+2)=ZERO
+         EXX(J1+3)=(ZS(IA)**2)*0.121676
+         C1(J1+3)=0.500553
+         C2(J1+3)=ZERO
+         NSHELL=NSHELL+1
+         X(NSHELL)=C(I,1)
+         Y(NSHELL)=C(I,2)
+         Z(NSHELL)=C(I,3)
+         JAN(NSHELL)=CORE(NAT(I))
+         SHELLA(NSHELL)=MM
+         SHLADF(NSHELL)=0
+         SHELLN(NSHELL)=NGAUSS
+         SHELLT(NSHELL)=0
+         SHELLC(NSHELL)=2
+         SHELLX(NSHELL)=I
+         SCALE(NSHELL)=RONE
+         AON(NSHELL)=IAO1S
+         AOS(NSHELL)=NSTART
+         IAOS(NSHELL)=NSTART
+         NSTART=NSTART+1
+         MM=MM+NGAUSS
+         GOTO 220
 C***********************************************************************
 C        2S SHELL (CONVERTED IN STO-4G, EACH GTO WITH NG=1
 C***********************************************************************
- 302  IF (IA-10) 303,303,305
- 303  J1=MM
-      EXX(J1)=((2*ZS(IA))**2)*4.659200
-      C1(J1)=-0.008762
-      C2(J1)=ZERO
-      EXX(J1+1)=((2*ZS(IA))**2)*0.554244
-      C1(J1+1)=-0.057567
-      C2(J1+1)=ZERO
-      EXX(J1+2)=((2*ZS(IA))**2)*0.0403319
-      C1(J1+2)=0.568282
-      C2(J1+2)=ZERO
-      EXX(J1+3)=((2*ZS(IA))**2)*0.0155519
-      C1(J1+3)=0.487628
-      C2(J1+3)=ZERO
-      NSHELL=NSHELL+1
-      X(NSHELL)=C(I,1)
-      Y(NSHELL)=C(I,2)
-      Z(NSHELL)=C(I,3)
-      JAN(NSHELL)=CORE(NAT(I))
-      SHELLA(NSHELL)=MM
-      SHLADF(NSHELL)=0
-      SHELLN(NSHELL)=NGAUSS
-      SHELLT(NSHELL)=0
-      SHELLC(NSHELL)=2
-      SHELLX(NSHELL)=I
-      SCALE(NSHELL)=RONE
-      AON(NSHELL)=IAO2S
-      AOS(NSHELL)=NSTART
-      IAOS(NSHELL)=NSTART
-      NSTART=NSTART+1
-      MM=MM+NGAUSS
-      IF (IA-4) 203,203,304
+   40    IF (IA-10) 50,50,70
+   50    J1=MM
+         EXX(J1)=((2*ZS(IA))**2)*4.659200
+         C1(J1)=-0.008762
+         C2(J1)=ZERO
+         EXX(J1+1)=((2*ZS(IA))**2)*0.554244
+         C1(J1+1)=-0.057567
+         C2(J1+1)=ZERO
+         EXX(J1+2)=((2*ZS(IA))**2)*0.0403319
+         C1(J1+2)=0.568282
+         C2(J1+2)=ZERO
+         EXX(J1+3)=((2*ZS(IA))**2)*0.0155519
+         C1(J1+3)=0.487628
+         C2(J1+3)=ZERO
+         NSHELL=NSHELL+1
+         X(NSHELL)=C(I,1)
+         Y(NSHELL)=C(I,2)
+         Z(NSHELL)=C(I,3)
+         JAN(NSHELL)=CORE(NAT(I))
+         SHELLA(NSHELL)=MM
+         SHLADF(NSHELL)=0
+         SHELLN(NSHELL)=NGAUSS
+         SHELLT(NSHELL)=0
+         SHELLC(NSHELL)=2
+         SHELLX(NSHELL)=I
+         SCALE(NSHELL)=RONE
+         AON(NSHELL)=IAO2S
+         AOS(NSHELL)=NSTART
+         IAOS(NSHELL)=NSTART
+         NSTART=NSTART+1
+         MM=MM+NGAUSS
+         IF (IA-4) 220,220,60
 C***********************************************************************
 C        2P SHELL (CONVERTED IN STO-4G, EACH GTO WITH NG=2
 C***********************************************************************
- 304  J1=MM
-      EXX(J1)=((2*ZP(IA))**2)*0.722447
-      C1(J1)=ZERO
-      C2(J1)=0.027090
-      EXX(J1+1)=((2*ZP(IA))**2)*0.171826
-      C1(J1+1)=ZERO
-      C2(J1+1)=0.185828
-      EXX(J1+2)=((2*ZP(IA))**2)*0.0552204
-      C1(J1+2)=ZERO
-      C2(J1+2)=0.532171
-      EXX(J1+3)=((2*ZP(IA))**2)*0.0200790
-      C1(J1+3)=ZERO
-      C2(J1+3)=0.410307
-      NSHELL=NSHELL+1
-      X(NSHELL)=C(I,1)
-      Y(NSHELL)=C(I,2)
-      Z(NSHELL)=C(I,3)
-      JAN(NSHELL)=CORE(NAT(I))
-      SHELLA(NSHELL)=MM
-      SHLADF(NSHELL)=0
-      SHELLN(NSHELL)=NGAUSS
-      SHELLT(NSHELL)=1
-      SHELLC(NSHELL)=1
-      SHELLX(NSHELL)=I
-      SCALE(NSHELL)=RONE
-      AON(NSHELL)=IAO2P
-      AOS(NSHELL)=NSTART-1
-      IAOS(NSHELL)=NSTART
-      NSTART=NSTART+3
-      MM=MM+NGAUSS
-      GOTO 203
+   60    J1=MM
+         EXX(J1)=((2*ZP(IA))**2)*0.722447
+         C1(J1)=ZERO
+         C2(J1)=0.027090
+         EXX(J1+1)=((2*ZP(IA))**2)*0.171826
+         C1(J1+1)=ZERO
+         C2(J1+1)=0.185828
+         EXX(J1+2)=((2*ZP(IA))**2)*0.0552204
+         C1(J1+2)=ZERO
+         C2(J1+2)=0.532171
+         EXX(J1+3)=((2*ZP(IA))**2)*0.0200790
+         C1(J1+3)=ZERO
+         C2(J1+3)=0.410307
+         NSHELL=NSHELL+1
+         X(NSHELL)=C(I,1)
+         Y(NSHELL)=C(I,2)
+         Z(NSHELL)=C(I,3)
+         JAN(NSHELL)=CORE(NAT(I))
+         SHELLA(NSHELL)=MM
+         SHLADF(NSHELL)=0
+         SHELLN(NSHELL)=NGAUSS
+         SHELLT(NSHELL)=1
+         SHELLC(NSHELL)=1
+         SHELLX(NSHELL)=I
+         SCALE(NSHELL)=RONE
+         AON(NSHELL)=IAO2P
+         AOS(NSHELL)=NSTART-1
+         IAOS(NSHELL)=NSTART
+         NSTART=NSTART+3
+         MM=MM+NGAUSS
+         GOTO 220
 C***********************************************************************
 C        3S SHELL (CONVERTED IN STO-4G, EACH GTO WITH NG=1
 C***********************************************************************
- 305  IF (IA-18) 306,306,308
- 306  J1=MM
-      EXX(J1)=((3*ZS(IA))**2)*0.217189
-      C1(J1)=-0.023073
-      C2(J1)=ZERO
-      EXX(J1+1)=((3*ZS(IA))**2)*0.0517494
-      C1(J1+1)=-0.173782
-      C2(J1+1)=ZERO
-      EXX(J1+2)=((3*ZS(IA))**2)*0.00808293
-      C1(J1+2)=0.816385
-      C2(J1+2)=ZERO
-      EXX(J1+3)=((3*ZS(IA))**2)*0.00387327
-      C1(J1+3)=0.285658
-      C2(J1+3)=ZERO
-      NSHELL=NSHELL+1
-      X(NSHELL)=C(I,1)
-      Y(NSHELL)=C(I,2)
-      Z(NSHELL)=C(I,3)
-      JAN(NSHELL)=CORE(NAT(I))
-      SHELLA(NSHELL)=MM
-      SHLADF(NSHELL)=0
-      SHELLN(NSHELL)=NGAUSS
-      SHELLT(NSHELL)=0
-      SHELLC(NSHELL)=2
-      SHELLX(NSHELL)=I
-      SCALE(NSHELL)=RONE
-      AON(NSHELL)=IAO3S
-      AOS(NSHELL)=NSTART
-      IAOS(NSHELL)=NSTART
-      NSTART=NSTART+1
-      MM=MM+NGAUSS
-      IF (IA-12) 203,203,307
+   70    IF (IA-18) 80,80,100
+   80    J1=MM
+         EXX(J1)=((3*ZS(IA))**2)*0.217189
+         C1(J1)=-0.023073
+         C2(J1)=ZERO
+         EXX(J1+1)=((3*ZS(IA))**2)*0.0517494
+         C1(J1+1)=-0.173782
+         C2(J1+1)=ZERO
+         EXX(J1+2)=((3*ZS(IA))**2)*0.00808293
+         C1(J1+2)=0.816385
+         C2(J1+2)=ZERO
+         EXX(J1+3)=((3*ZS(IA))**2)*0.00387327
+         C1(J1+3)=0.285658
+         C2(J1+3)=ZERO
+         NSHELL=NSHELL+1
+         X(NSHELL)=C(I,1)
+         Y(NSHELL)=C(I,2)
+         Z(NSHELL)=C(I,3)
+         JAN(NSHELL)=CORE(NAT(I))
+         SHELLA(NSHELL)=MM
+         SHLADF(NSHELL)=0
+         SHELLN(NSHELL)=NGAUSS
+         SHELLT(NSHELL)=0
+         SHELLC(NSHELL)=2
+         SHELLX(NSHELL)=I
+         SCALE(NSHELL)=RONE
+         AON(NSHELL)=IAO3S
+         AOS(NSHELL)=NSTART
+         IAOS(NSHELL)=NSTART
+         NSTART=NSTART+1
+         MM=MM+NGAUSS
+         IF (IA-12) 220,220,90
 C***********************************************************************
 C        3P SHELL (CONVERTED IN STO-4G, EACH GTO WITH NG=2
 C***********************************************************************
- 307  J1=MM
-      EXX(J1)=((3*ZP(IA))**2)*0.232988
-      C1(J1)=ZERO
-      C2(J1)=-0.013778
-      EXX(J1+1)=((3*ZP(IA))**2)*0.0215155
-      C1(J1+1)=ZERO
-      C2(J1+1)=0.253019
-      EXX(J1+2)=((3*ZP(IA))**2)*0.0102710
-      C1(J1+2)=ZERO
-      C2(J1+2)=0.545086
-      EXX(J1+3)=((3*ZP(IA))**2)*0.00505386
-      C1(J1+3)=ZERO
-      C2(J1+3)=0.275099
-      NSHELL=NSHELL+1
-      X(NSHELL)=C(I,1)
-      Y(NSHELL)=C(I,2)
-      Z(NSHELL)=C(I,3)
-      JAN(NSHELL)=CORE(NAT(I))
-      SHELLA(NSHELL)=MM
-      SHLADF(NSHELL)=0
-      SHELLN(NSHELL)=NGAUSS
-      SHELLT(NSHELL)=1
-      SHELLC(NSHELL)=1
-      SHELLX(NSHELL)=I
-      SCALE(NSHELL)=RONE
-      AON(NSHELL)=IAO3P
-      AOS(NSHELL)=NSTART-1
-      IAOS(NSHELL)=NSTART
-      NSTART=NSTART+3
-      MM=MM+NGAUSS
-      GOTO 203
+   90    J1=MM
+         EXX(J1)=((3*ZP(IA))**2)*0.232988
+         C1(J1)=ZERO
+         C2(J1)=-0.013778
+         EXX(J1+1)=((3*ZP(IA))**2)*0.0215155
+         C1(J1+1)=ZERO
+         C2(J1+1)=0.253019
+         EXX(J1+2)=((3*ZP(IA))**2)*0.0102710
+         C1(J1+2)=ZERO
+         C2(J1+2)=0.545086
+         EXX(J1+3)=((3*ZP(IA))**2)*0.00505386
+         C1(J1+3)=ZERO
+         C2(J1+3)=0.275099
+         NSHELL=NSHELL+1
+         X(NSHELL)=C(I,1)
+         Y(NSHELL)=C(I,2)
+         Z(NSHELL)=C(I,3)
+         JAN(NSHELL)=CORE(NAT(I))
+         SHELLA(NSHELL)=MM
+         SHLADF(NSHELL)=0
+         SHELLN(NSHELL)=NGAUSS
+         SHELLT(NSHELL)=1
+         SHELLC(NSHELL)=1
+         SHELLX(NSHELL)=I
+         SCALE(NSHELL)=RONE
+         AON(NSHELL)=IAO3P
+         AOS(NSHELL)=NSTART-1
+         IAOS(NSHELL)=NSTART
+         NSTART=NSTART+3
+         MM=MM+NGAUSS
+         GOTO 220
 C***********************************************************************
 C        4S SHELL (CONVERTED IN STO-4G, EACH GTO WITH NG=1
 C***********************************************************************
- 308  IF (IA-36) 309,309,311
- 309  J1=MM
-      EXX(J1)=((4*ZS(IA))**2)*0.0164505
-      C1(J1)=-0.223592
-      C2(J1)=ZERO
-      EXX(J1+1)=((4*ZS(IA))**2)*0.00738627
-      C1(J1+1)=-0.258521
-      C2(J1+1)=ZERO
-      EXX(J1+2)=((4*ZS(IA))**2)*0.00350378
-      C1(J1+2)=0.858128
-      C2(J1+2)=ZERO
-      EXX(J1+3)=((4*ZS(IA))**2)*0.00188555
-      C1(J1+3)=0.471043
-      C2(J1+3)=ZERO
-      NSHELL=NSHELL+1
-      X(NSHELL)=C(I,1)
-      Y(NSHELL)=C(I,2)
-      Z(NSHELL)=C(I,3)
-      JAN(NSHELL)=CORE(NAT(I))
-      SHELLA(NSHELL)=MM
-      SHLADF(NSHELL)=0
-      SHELLN(NSHELL)=NGAUSS
-      SHELLT(NSHELL)=0
-      SHELLC(NSHELL)=2
-      SHELLX(NSHELL)=I
-      SCALE(NSHELL)=RONE
-      AON(NSHELL)=IAO4S
-      AOS(NSHELL)=NSTART
-      IAOS(NSHELL)=NSTART
-      NSTART=NSTART+1
-      MM=MM+NGAUSS
-      IF (IA-20) 203,203,310
+  100    IF (IA-36) 110,110,130
+  110    J1=MM
+         EXX(J1)=((4*ZS(IA))**2)*0.0164505
+         C1(J1)=-0.223592
+         C2(J1)=ZERO
+         EXX(J1+1)=((4*ZS(IA))**2)*0.00738627
+         C1(J1+1)=-0.258521
+         C2(J1+1)=ZERO
+         EXX(J1+2)=((4*ZS(IA))**2)*0.00350378
+         C1(J1+2)=0.858128
+         C2(J1+2)=ZERO
+         EXX(J1+3)=((4*ZS(IA))**2)*0.00188555
+         C1(J1+3)=0.471043
+         C2(J1+3)=ZERO
+         NSHELL=NSHELL+1
+         X(NSHELL)=C(I,1)
+         Y(NSHELL)=C(I,2)
+         Z(NSHELL)=C(I,3)
+         JAN(NSHELL)=CORE(NAT(I))
+         SHELLA(NSHELL)=MM
+         SHLADF(NSHELL)=0
+         SHELLN(NSHELL)=NGAUSS
+         SHELLT(NSHELL)=0
+         SHELLC(NSHELL)=2
+         SHELLX(NSHELL)=I
+         SCALE(NSHELL)=RONE
+         AON(NSHELL)=IAO4S
+         AOS(NSHELL)=NSTART
+         IAOS(NSHELL)=NSTART
+         NSTART=NSTART+1
+         MM=MM+NGAUSS
+         IF (IA-20) 220,220,120
 C***********************************************************************
 C        4P SHELL (CONVERTED IN STO-4G, EACH GTO WITH NG=2
 C***********************************************************************
- 310  J1=MM
-      EXX(J1)=((4*ZP(IA))**2)*0.0858757
-      C1(J1)=ZERO
-      C2(J1)=-0.007342
-      EXX(J1+1)=((4*ZP(IA))**2)*0.0259767
-      C1(J1+1)=ZERO
-      C2(J1+1)=-0.060896
-      EXX(J1+2)=((4*ZP(IA))**2)*0.00480469
-      C1(J1+2)=ZERO
-      C2(J1+2)=0.622636
-      EXX(J1+3)=((4*ZP(IA))**2)*0.00236631
-      C1(J1+3)=ZERO
-      C2(J1+3)=0.435991
-      NSHELL=NSHELL+1
-      X(NSHELL)=C(I,1)
-      Y(NSHELL)=C(I,2)
-      Z(NSHELL)=C(I,3)
-      JAN(NSHELL)=CORE(NAT(I))
-      SHELLA(NSHELL)=MM
-      SHLADF(NSHELL)=0
-      SHELLN(NSHELL)=NGAUSS
-      SHELLT(NSHELL)=1
-      SHELLC(NSHELL)=1
-      SHELLX(NSHELL)=I
-      SCALE(NSHELL)=RONE
-      AON(NSHELL)=IAO4P
-      AOS(NSHELL)=NSTART-1
-      IAOS(NSHELL)=NSTART
-      NSTART=NSTART+3
-      MM=MM+NGAUSS
-      GOTO 203
+  120    J1=MM
+         EXX(J1)=((4*ZP(IA))**2)*0.0858757
+         C1(J1)=ZERO
+         C2(J1)=-0.007342
+         EXX(J1+1)=((4*ZP(IA))**2)*0.0259767
+         C1(J1+1)=ZERO
+         C2(J1+1)=-0.060896
+         EXX(J1+2)=((4*ZP(IA))**2)*0.00480469
+         C1(J1+2)=ZERO
+         C2(J1+2)=0.622636
+         EXX(J1+3)=((4*ZP(IA))**2)*0.00236631
+         C1(J1+3)=ZERO
+         C2(J1+3)=0.435991
+         NSHELL=NSHELL+1
+         X(NSHELL)=C(I,1)
+         Y(NSHELL)=C(I,2)
+         Z(NSHELL)=C(I,3)
+         JAN(NSHELL)=CORE(NAT(I))
+         SHELLA(NSHELL)=MM
+         SHLADF(NSHELL)=0
+         SHELLN(NSHELL)=NGAUSS
+         SHELLT(NSHELL)=1
+         SHELLC(NSHELL)=1
+         SHELLX(NSHELL)=I
+         SCALE(NSHELL)=RONE
+         AON(NSHELL)=IAO4P
+         AOS(NSHELL)=NSTART-1
+         IAOS(NSHELL)=NSTART
+         NSTART=NSTART+3
+         MM=MM+NGAUSS
+         GOTO 220
 C***********************************************************************
 C        5S SHELL (CONVERTED IN STO-4G, EACH GTO WITH NG=1
 C***********************************************************************
- 311  IF (IA-54) 312,312,314
- 312  J1=MM
-      EXX(J1)=((5*ZS(IA))**2)*0.0336773
-      C1(J1)=0.011685
-      C2(J1)=ZERO
-      EXX(J1+1)=((5*ZS(IA))**2)*0.00481262
-      C1(J1+1)=-0.549835
-      C2(J1+1)=ZERO
-      EXX(J1+2)=((5*ZS(IA))**2)*0.00134481
-      C1(J1+2)=1.225552
-      C2(J1+2)=ZERO
-      EXX(J1+3)=((5*ZS(IA))**2)*0.000722522
-      C1(J1+3)=0.115940
-      C2(J1+3)=ZERO
-      NSHELL=NSHELL+1
-      X(NSHELL)=C(I,1)
-      Y(NSHELL)=C(I,2)
-      Z(NSHELL)=C(I,3)
-      JAN(NSHELL)=CORE(NAT(I))
-      SHELLA(NSHELL)=MM
-      SHLADF(NSHELL)=0
-      SHELLN(NSHELL)=NGAUSS
-      SHELLT(NSHELL)=0
-      SHELLC(NSHELL)=2
-      SHELLX(NSHELL)=I
-      SCALE(NSHELL)=RONE
-      AON(NSHELL)=IAO5S
-      AOS(NSHELL)=NSTART
-      IAOS(NSHELL)=NSTART
-      NSTART=NSTART+1
-      MM=MM+NGAUSS
-      IF (IA-38) 203,203,313
+  130    IF (IA-54) 140,140,160
+  140    J1=MM
+         EXX(J1)=((5*ZS(IA))**2)*0.0336773
+         C1(J1)=0.011685
+         C2(J1)=ZERO
+         EXX(J1+1)=((5*ZS(IA))**2)*0.00481262
+         C1(J1+1)=-0.549835
+         C2(J1+1)=ZERO
+         EXX(J1+2)=((5*ZS(IA))**2)*0.00134481
+         C1(J1+2)=1.225552
+         C2(J1+2)=ZERO
+         EXX(J1+3)=((5*ZS(IA))**2)*0.000722522
+         C1(J1+3)=0.115940
+         C2(J1+3)=ZERO
+         NSHELL=NSHELL+1
+         X(NSHELL)=C(I,1)
+         Y(NSHELL)=C(I,2)
+         Z(NSHELL)=C(I,3)
+         JAN(NSHELL)=CORE(NAT(I))
+         SHELLA(NSHELL)=MM
+         SHLADF(NSHELL)=0
+         SHELLN(NSHELL)=NGAUSS
+         SHELLT(NSHELL)=0
+         SHELLC(NSHELL)=2
+         SHELLX(NSHELL)=I
+         SCALE(NSHELL)=RONE
+         AON(NSHELL)=IAO5S
+         AOS(NSHELL)=NSTART
+         IAOS(NSHELL)=NSTART
+         NSTART=NSTART+1
+         MM=MM+NGAUSS
+         IF (IA-38) 220,220,150
 C***********************************************************************
 C        5P SHELL (CONVERTED IN STO-4G, EACH GTO WITH NG=2
 C***********************************************************************
- 313  J1=MM
-      EXX(J1)=((5*ZP(IA))**2)*0.0138998
-      C1(J1)=ZERO
-      C2(J1)=-0.027559
-      EXX(J1+1)=((5*ZP(IA))**2)*0.00696561
-      C1(J1+1)=ZERO
-      C2(J1+1)=-0.131581
-      EXX(J1+2)=((5*ZP(IA))**2)*0.00201055
-      C1(J1+2)=ZERO
-      C2(J1+2)=0.732336
-      EXX(J1+3)=((5*ZP(IA))**2)*0.00112114
-      C1(J1+3)=ZERO
-      C2(J1+3)=0.367027
-      NSHELL=NSHELL+1
-      X(NSHELL)=C(I,1)
-      Y(NSHELL)=C(I,2)
-      Z(NSHELL)=C(I,3)
-      JAN(NSHELL)=CORE(NAT(I))
-      SHELLA(NSHELL)=MM
-      SHLADF(NSHELL)=0
-      SHELLN(NSHELL)=NGAUSS
-      SHELLT(NSHELL)=1
-      SHELLC(NSHELL)=1
-      SHELLX(NSHELL)=I
-      SCALE(NSHELL)=RONE
-      AON(NSHELL)=IAO5P
-      AOS(NSHELL)=NSTART-1
-      IAOS(NSHELL)=NSTART
-      NSTART=NSTART+3
-      MM=MM+NGAUSS
-      GOTO 203
+  150    J1=MM
+         EXX(J1)=((5*ZP(IA))**2)*0.0138998
+         C1(J1)=ZERO
+         C2(J1)=-0.027559
+         EXX(J1+1)=((5*ZP(IA))**2)*0.00696561
+         C1(J1+1)=ZERO
+         C2(J1+1)=-0.131581
+         EXX(J1+2)=((5*ZP(IA))**2)*0.00201055
+         C1(J1+2)=ZERO
+         C2(J1+2)=0.732336
+         EXX(J1+3)=((5*ZP(IA))**2)*0.00112114
+         C1(J1+3)=ZERO
+         C2(J1+3)=0.367027
+         NSHELL=NSHELL+1
+         X(NSHELL)=C(I,1)
+         Y(NSHELL)=C(I,2)
+         Z(NSHELL)=C(I,3)
+         JAN(NSHELL)=CORE(NAT(I))
+         SHELLA(NSHELL)=MM
+         SHLADF(NSHELL)=0
+         SHELLN(NSHELL)=NGAUSS
+         SHELLT(NSHELL)=1
+         SHELLC(NSHELL)=1
+         SHELLX(NSHELL)=I
+         SCALE(NSHELL)=RONE
+         AON(NSHELL)=IAO5P
+         AOS(NSHELL)=NSTART-1
+         IAOS(NSHELL)=NSTART
+         NSTART=NSTART+3
+         MM=MM+NGAUSS
+         GOTO 220
 C***********************************************************************
 C        6S SHELL (CONVERTED IN STO-4G, EACH GTO WITH NG=1
 C***********************************************************************
- 314  IF (IA-86) 315,315,317
- 315  J1=MM
-      EXX(J1)=((6*ZS(IA))**2)*0.00906589
-      C1(J1)=0.046421
-      C2(J1)=ZERO
-      EXX(J1+1)=((6*ZS(IA))**2)*0.00207602
-      C1(J1+1)=-0.890119
-      C2(J1+1)=ZERO
-      EXX(J1+2)=((6*ZS(IA))**2)*0.000818469
-      C1(J1+2)=1.227342
-      C2(J1+2)=ZERO
-      EXX(J1+3)=((6*ZS(IA))**2)*0.000533131
-      C1(J1+3)=0.385413
-      C2(J1+3)=ZERO
-      NSHELL=NSHELL+1
-      X(NSHELL)=C(I,1)
-      Y(NSHELL)=C(I,2)
-      Z(NSHELL)=C(I,3)
-      JAN(NSHELL)=CORE(NAT(I))
-      SHELLA(NSHELL)=MM
-      SHLADF(NSHELL)=0
-      SHELLN(NSHELL)=NGAUSS
-      SHELLT(NSHELL)=0
-      SHELLC(NSHELL)=2
-      SHELLX(NSHELL)=I
-      SCALE(NSHELL)=RONE
-      AON(NSHELL)=IAO6S
-      AOS(NSHELL)=NSTART
-      IAOS(NSHELL)=NSTART
-      NSTART=NSTART+1
-      MM=MM+NGAUSS
-      IF (IA-56) 203,203,316
+  160    IF (IA-86) 170,170,190
+  170    J1=MM
+         EXX(J1)=((6*ZS(IA))**2)*0.00906589
+         C1(J1)=0.046421
+         C2(J1)=ZERO
+         EXX(J1+1)=((6*ZS(IA))**2)*0.00207602
+         C1(J1+1)=-0.890119
+         C2(J1+1)=ZERO
+         EXX(J1+2)=((6*ZS(IA))**2)*0.000818469
+         C1(J1+2)=1.227342
+         C2(J1+2)=ZERO
+         EXX(J1+3)=((6*ZS(IA))**2)*0.000533131
+         C1(J1+3)=0.385413
+         C2(J1+3)=ZERO
+         NSHELL=NSHELL+1
+         X(NSHELL)=C(I,1)
+         Y(NSHELL)=C(I,2)
+         Z(NSHELL)=C(I,3)
+         JAN(NSHELL)=CORE(NAT(I))
+         SHELLA(NSHELL)=MM
+         SHLADF(NSHELL)=0
+         SHELLN(NSHELL)=NGAUSS
+         SHELLT(NSHELL)=0
+         SHELLC(NSHELL)=2
+         SHELLX(NSHELL)=I
+         SCALE(NSHELL)=RONE
+         AON(NSHELL)=IAO6S
+         AOS(NSHELL)=NSTART
+         IAOS(NSHELL)=NSTART
+         NSTART=NSTART+1
+         MM=MM+NGAUSS
+         IF (IA-56) 220,220,180
 C***********************************************************************
 C        6P SHELL (CONVERTED IN STO-4G, EACH GTO WITH NG=2
 C***********************************************************************
- 316  J1=MM
-      EXX(J1)=((6*ZP(IA))**2)*0.0243358
-      C1(J1)=ZERO
-      C2(J1)=0.001725
-      EXX(J1+1)=((6*ZP(IA))**2)*0.00328534
-      C1(J1+1)=ZERO
-      C2(J1+1)=-0.247801
-      EXX(J1+2)=((6*ZP(IA))**2)*0.000968191
-      C1(J1+2)=ZERO
-      C2(J1+2)=0.932682
-      EXX(J1+3)=((6*ZP(IA))**2)*0.000567636
-      C1(J1+3)=ZERO
-      C2(J1+3)=0.213929
-      NSHELL=NSHELL+1
-      X(NSHELL)=C(I,1)
-      Y(NSHELL)=C(I,2)
-      Z(NSHELL)=C(I,3)
-      JAN(NSHELL)=CORE(NAT(I))
-      SHELLA(NSHELL)=MM
-      SHLADF(NSHELL)=0
-      SHELLN(NSHELL)=NGAUSS
-      SHELLT(NSHELL)=1
-      SHELLC(NSHELL)=1
-      SHELLX(NSHELL)=I
-      SCALE(NSHELL)=RONE
-      AON(NSHELL)=IAO6P
-      AOS(NSHELL)=NSTART-1
-      IAOS(NSHELL)=NSTART
-      NSTART=NSTART+3
-      MM=MM+NGAUSS
-      GOTO 203
+  180    J1=MM
+         EXX(J1)=((6*ZP(IA))**2)*0.0243358
+         C1(J1)=ZERO
+         C2(J1)=0.001725
+         EXX(J1+1)=((6*ZP(IA))**2)*0.00328534
+         C1(J1+1)=ZERO
+         C2(J1+1)=-0.247801
+         EXX(J1+2)=((6*ZP(IA))**2)*0.000968191
+         C1(J1+2)=ZERO
+         C2(J1+2)=0.932682
+         EXX(J1+3)=((6*ZP(IA))**2)*0.000567636
+         C1(J1+3)=ZERO
+         C2(J1+3)=0.213929
+         NSHELL=NSHELL+1
+         X(NSHELL)=C(I,1)
+         Y(NSHELL)=C(I,2)
+         Z(NSHELL)=C(I,3)
+         JAN(NSHELL)=CORE(NAT(I))
+         SHELLA(NSHELL)=MM
+         SHLADF(NSHELL)=0
+         SHELLN(NSHELL)=NGAUSS
+         SHELLT(NSHELL)=1
+         SHELLC(NSHELL)=1
+         SHELLX(NSHELL)=I
+         SCALE(NSHELL)=RONE
+         AON(NSHELL)=IAO6P
+         AOS(NSHELL)=NSTART-1
+         IAOS(NSHELL)=NSTART
+         NSTART=NSTART+3
+         MM=MM+NGAUSS
+         GOTO 220
 C***********************************************************************
 C        7S SHELL (CONVERTED IN STO-4G, EACH GTO WITH NG=1
 C***********************************************************************
- 317  IF (IA-104) 318,318,203
- 318  J1=MM
-      EXX(J1)=((7*ZS(IA))**2)*0.00324143
-      C1(J1)=0.144821
-      C2(J1)=ZERO
-      EXX(J1+1)=((7*ZS(IA))**2)*0.00113212
-      C1(J1+1)=-1.240536
-      C2(J1+1)=ZERO
-      EXX(J1+2)=((7*ZS(IA))**2)*0.000471755
-      C1(J1+2)=1.631994
-      C2(J1+2)=ZERO
-      EXX(J1+3)=((7*ZS(IA))**2)*0.000301608
-      C1(J1+3)=0.204852
-      C2(J1+3)=ZERO
-      NSHELL=NSHELL+1
-      X(NSHELL)=C(I,1)
-      Y(NSHELL)=C(I,2)
-      Z(NSHELL)=C(I,3)
-      JAN(NSHELL)=CORE(NAT(I))
-      SHELLA(NSHELL)=MM
-      SHLADF(NSHELL)=0
-      SHELLN(NSHELL)=NGAUSS
-      SHELLT(NSHELL)=0
-      SHELLC(NSHELL)=2
-      SHELLX(NSHELL)=I
-      SCALE(NSHELL)=RONE
-      AON(NSHELL)=IAO7S
-      AOS(NSHELL)=NSTART
-      IAOS(NSHELL)=NSTART
-      NSTART=NSTART+1
-      MM=MM+NGAUSS
-      IF (IA-88) 203,203,319
+  190    IF (IA-104) 200,200,220
+  200    J1=MM
+         EXX(J1)=((7*ZS(IA))**2)*0.00324143
+         C1(J1)=0.144821
+         C2(J1)=ZERO
+         EXX(J1+1)=((7*ZS(IA))**2)*0.00113212
+         C1(J1+1)=-1.240536
+         C2(J1+1)=ZERO
+         EXX(J1+2)=((7*ZS(IA))**2)*0.000471755
+         C1(J1+2)=1.631994
+         C2(J1+2)=ZERO
+         EXX(J1+3)=((7*ZS(IA))**2)*0.000301608
+         C1(J1+3)=0.204852
+         C2(J1+3)=ZERO
+         NSHELL=NSHELL+1
+         X(NSHELL)=C(I,1)
+         Y(NSHELL)=C(I,2)
+         Z(NSHELL)=C(I,3)
+         JAN(NSHELL)=CORE(NAT(I))
+         SHELLA(NSHELL)=MM
+         SHLADF(NSHELL)=0
+         SHELLN(NSHELL)=NGAUSS
+         SHELLT(NSHELL)=0
+         SHELLC(NSHELL)=2
+         SHELLX(NSHELL)=I
+         SCALE(NSHELL)=RONE
+         AON(NSHELL)=IAO7S
+         AOS(NSHELL)=NSTART
+         IAOS(NSHELL)=NSTART
+         NSTART=NSTART+1
+         MM=MM+NGAUSS
+         IF (IA-88) 220,220,210
 C***********************************************************************
 C        7P SHELL (CONVERTED IN STO-4G, EACH GTO WITH NG=2
 C***********************************************************************
- 319  J1=MM
-      EXX(J1)=((7*ZP(IA))**2)*0.00635421
-      C1(J1)=ZERO
-      C2(J1)=0.0011476
-      EXX(J1+1)=((7*ZP(IA))**2)*0.00154903
-      C1(J1+1)=ZERO
-      C2(J1+1)=-0.404467
-      EXX(J1+2)=((7*ZP(IA))**2)*0.000579597
-      C1(J1+2)=ZERO
-      C2(J1+2)=1.007520
-      EXX(J1+3)=((7*ZP(IA))**2)*0.000367363
-      C1(J1+3)=ZERO
-      C2(J1+3)=0.253181
-      NSHELL=NSHELL+1
-      X(NSHELL)=C(I,1)
-      Y(NSHELL)=C(I,2)
-      Z(NSHELL)=C(I,3)
-      JAN(NSHELL)=CORE(NAT(I))
-      SHELLA(NSHELL)=MM
-      SHLADF(NSHELL)=0
-      SHELLN(NSHELL)=NGAUSS
-      SHELLT(NSHELL)=1
-      SHELLC(NSHELL)=1
-      SHELLX(NSHELL)=I
-      SCALE(NSHELL)=RONE
-      AON(NSHELL)=IAO6P
-      AOS(NSHELL)=NSTART-1
-      IAOS(NSHELL)=NSTART
-      NSTART=NSTART+3
-      MM=MM+NGAUSS
-203   CONTINUE
+  210    J1=MM
+         EXX(J1)=((7*ZP(IA))**2)*0.00635421
+         C1(J1)=ZERO
+         C2(J1)=0.0011476
+         EXX(J1+1)=((7*ZP(IA))**2)*0.00154903
+         C1(J1+1)=ZERO
+         C2(J1+1)=-0.404467
+         EXX(J1+2)=((7*ZP(IA))**2)*0.000579597
+         C1(J1+2)=ZERO
+         C2(J1+2)=1.007520
+         EXX(J1+3)=((7*ZP(IA))**2)*0.000367363
+         C1(J1+3)=ZERO
+         C2(J1+3)=0.253181
+         NSHELL=NSHELL+1
+         X(NSHELL)=C(I,1)
+         Y(NSHELL)=C(I,2)
+         Z(NSHELL)=C(I,3)
+         JAN(NSHELL)=CORE(NAT(I))
+         SHELLA(NSHELL)=MM
+         SHLADF(NSHELL)=0
+         SHELLN(NSHELL)=NGAUSS
+         SHELLT(NSHELL)=1
+         SHELLC(NSHELL)=1
+         SHELLX(NSHELL)=I
+         SCALE(NSHELL)=RONE
+         AON(NSHELL)=IAO6P
+         AOS(NSHELL)=NSTART-1
+         IAOS(NSHELL)=NSTART
+         NSTART=NSTART+3
+         MM=MM+NGAUSS
+  220 CONTINUE
       AOS(NSHELL+1)=NSTART
       IAOS(NSHELL+1)=NSTART
       NBASIS=NSTART-1
@@ -553,69 +1839,75 @@ C
 C
 C     NOW GAUSSIAN FUNCTIONS ARE NORMALIZED
 C
- 2001 FORMAT(39H SIGNIFICANT RENORMALIZATION REQUIRED  ,E20.10)
+  230 FORMAT(39H SIGNIFICANT RENORMALIZATION REQUIRED  ,E20.10)
       SQRT2= SQRT(TWO)
-      PI=FOUR* ATAN(ONE)
+      PI=FOUR* ATAN(1.D0)
       TOOVPI=TWO/PI
       PITO75=PI**PT75
       FCON=(TWO/PITO75)* SQRT(TWO/F15)
       TWORT3=TWO/ SQRT(THREE)
       DELFIN=ZERO
-   10 DO 125 ISHELL=1,NSHELL
-      IGBEG=SHELLA(ISHELL)
-      IGEND=IGBEG+SHELLN(ISHELL)-1
-      OVRS=ZERO
-      OVRP=ZERO
-      OVRD=ZERO
-      OVRF=ZERO
-      IGDF=SHLADF(ISHELL)
-      DO 50 IGAUSS=IGBEG,IGEND
-      JGDF=SHLADF(ISHELL)
-      DO 30 JGAUSS=IGBEG,IGEND
-      AXB=FOUR*EXX(IGAUSS)*EXX(JGAUSS)
-      APLUSB=EXX(IGAUSS)+EXX(JGAUSS)
-      OVRS=OVRS+(C1(IGAUSS)*C1(JGAUSS))*((AXB**PT75)/(APLUSB**ONEPT5))
-      OVRP=OVRP+(C2(IGAUSS)*C2(JGAUSS))*((AXB**ONPT25)/(APLUSB**TWOPT5))
-      IF(IGDF)30,30,20
-   20 OVRD=OVRD+(C3(IGDF  )*C3(JGDF  ))*((AXB**ONPT75)/(APLUSB**THRPT5))
-      OVRF=OVRF+(C4(IGDF  )*C4(JGDF  ))*((AXB**TWPT25)/(APLUSB**FORPT5))
-      JGDF=JGDF+1
-   30 CONTINUE
-      IF(IGDF)50,50,40
-   40 IGDF=IGDF+1
-   50 CONTINUE
-      DO 100 I=1,4
-      IF(OVRLAP(I)-THRSH)60,60,70
-   60 OVRLAP(I)=ZERO
-      GO TO 100
-   70 DEL= ABS(ONE-OVRLAP(I))
-      IF(DEL-DELFIN)90,80,80
-   80 DELFIN=DEL
-   90 OVRLAP(I)=ONE/ SQRT(OVRLAP(I))
-  100 CONTINUE
-      IGDF=SHLADF(ISHELL)
-      DO 120 IGAUSS=IGBEG,IGEND
-      C1(IGAUSS)=C1(IGAUSS)*OVRS
-      C2(IGAUSS)=C2(IGAUSS)*OVRP
-      IF(IGDF)120,120,110
-  110 C3(IGDF)=C3(IGDF)*OVRD
-      C4(IGDF)=C4(IGDF)*OVRF
-      IGDF=IGDF+1
-  120 CONTINUE
-  125 CONTINUE
-  130 IF( ABS(DELFIN)-TENM6)150,150,140
-  140 WRITE(18,2001)DELFIN
-  150 DO 170 ISHELL=1,NSHELL
-      IGBEG=SHELLA(ISHELL)
-      IGEND=IGBEG+SHELLN(ISHELL)-1
-      IGDF=SHLADF(ISHELL)
-      DO 170 IGAUSS=IGBEG,IGEND
-      C1(IGAUSS)=C1(IGAUSS)*((TOOVPI*EXX(IGAUSS))**PT75)
-      C2(IGAUSS)=C2(IGAUSS)*SQRT2*((TWO*EXX(IGAUSS))**ONPT25)/PITO75
-      IF(IGDF)170,170,160
-  160 C3(IGDF  )=C3(IGDF  )*TWORT3*((TWO*EXX(IGAUSS))**ONPT75)/PITO75
-      C4(IGDF  )=C4(IGDF  )*FCON*(TWO*EXX(IGAUSS))**TWPT25
-  170 CONTINUE
+  240 DO 360 ISHELL=1,NSHELL
+         IGBEG=SHELLA(ISHELL)
+         IGEND=IGBEG+SHELLN(ISHELL)-1
+         OVRS=ZERO
+         OVRP=ZERO
+         OVRD=ZERO
+         OVRF=ZERO
+         IGDF=SHLADF(ISHELL)
+         DO 280 IGAUSS=IGBEG,IGEND
+            JGDF=SHLADF(ISHELL)
+            DO 260 JGAUSS=IGBEG,IGEND
+               AXB=FOUR*EXX(IGAUSS)*EXX(JGAUSS)
+               APLUSB=EXX(IGAUSS)+EXX(JGAUSS)
+               OVRS=OVRS+(C1(IGAUSS)*C1(JGAUSS))*((AXB**PT75)/(APLUSB**O
+     1NEPT5))
+               OVRP=OVRP+(C2(IGAUSS)*C2(JGAUSS))*((AXB**ONPT25)/(APLUSB*
+     1*TWOPT5))
+               IF(IGDF)260,260,250
+  250          OVRD=OVRD+(C3(IGDF  )*C3(JGDF  ))*((AXB**ONPT75)/(APLUSB*
+     1*THRPT5))
+               OVRF=OVRF+(C4(IGDF  )*C4(JGDF  ))*((AXB**TWPT25)/(APLUSB*
+     1*FORPT5))
+               JGDF=JGDF+1
+  260       CONTINUE
+            IF(IGDF)280,280,270
+  270       IGDF=IGDF+1
+  280    CONTINUE
+         DO 330 I=1,4
+            IF(OVRLAP(I)-THRSH)290,290,300
+  290       OVRLAP(I)=ZERO
+            GO TO 330
+  300       DEL= ABS(1.D0-OVRLAP(I))
+            IF(DEL-DELFIN)320,310,310
+  310       DELFIN=DEL
+  320       OVRLAP(I)=1.D0/ SQRT(OVRLAP(I))
+  330    CONTINUE
+         IGDF=SHLADF(ISHELL)
+         DO 350 IGAUSS=IGBEG,IGEND
+            C1(IGAUSS)=C1(IGAUSS)*OVRS
+            C2(IGAUSS)=C2(IGAUSS)*OVRP
+            IF(IGDF)350,350,340
+  340       C3(IGDF)=C3(IGDF)*OVRD
+            C4(IGDF)=C4(IGDF)*OVRF
+            IGDF=IGDF+1
+  350    CONTINUE
+  360 CONTINUE
+  370 IF( ABS(DELFIN)-TENM6)390,390,380
+  380 WRITE(IPOT,230)DELFIN
+  390 DO 410 ISHELL=1,NSHELL
+         IGBEG=SHELLA(ISHELL)
+         IGEND=IGBEG+SHELLN(ISHELL)-1
+         IGDF=SHLADF(ISHELL)
+         DO 410 IGAUSS=IGBEG,IGEND
+            C1(IGAUSS)=C1(IGAUSS)*((TOOVPI*EXX(IGAUSS))**PT75)
+            C2(IGAUSS)=C2(IGAUSS)*SQRT2*((TWO*EXX(IGAUSS))**ONPT25)/PITO
+     175
+            IF(IGDF)410,410,400
+  400       C3(IGDF  )=C3(IGDF  )*TWORT3*((TWO*EXX(IGAUSS))**ONPT75)/PIT
+     1O75
+            C4(IGDF  )=C4(IGDF  )*FCON*(TWO*EXX(IGAUSS))**TWPT25
+  410 CONTINUE
 C
 C     END OF RENORMALIZATION PROCESS
 C
@@ -624,98 +1916,98 @@ C
 C     FIRST EXAMINE THE OPTION MST SOLVATION MODEL
 C
       IF (INDEX(KEYWRD,'TOM').NE.0) THEN
-      IF(MFLAG.EQ.0) THEN
-        CALL PEDRA
-      END IF
-      IPR=1
-      NTS2=NTS*2
-      WRITE(18,614) ITERQ
-      WRITE(18,25)
-      WRITE(18,42)
-      NPP=1
-      NY=1
-      DO 600 K=1,NTS2
-      XV(1,1)=XV1(K)
-      YV(1,1)=YV1(K)
-      ZV(1,1)=ZV1(K)
-      VALV(1,1)=ZERO
-      CALL CADIMA
-      VPOT(K)=VALV(1,1)
-      DO 601 I=1,NUMAT
-      IF(NAT(I).EQ.0) GOTO 601
-      AX=XV(1,1)-C(I,1)
-      AY=YV(1,1)-C(I,2)
-      AZ=ZV(1,1)-C(I,3)
-      R=SQRT(AX*AX+AY*AY+AZ*AZ)
-      VPOT(K)=VPOT(K)+CORE(NAT(I))/R
-601   CONTINUE
-      VPOT(K)=VPOT(K)*FACTOR
-      WRITE(18,613) K,XV(1,1),YV(1,1),ZV(1,1),VPOT(K)*CONV
-      IPR=IPR+1
-600   CONTINUE
-      RETURN
-614   FORMAT(//,12HITERATION = ,I2,//)
+         IF(MFLAG.EQ.0) THEN
+            CALL PEDRA
+         END IF
+         IPR=1
+         NTS2=NTS*2
+         WRITE(IPOT,440) ITERQ
+         WRITE(IPOT,460)
+         WRITE(IPOT,490)
+         NPP=1
+         NY=1
+         DO 430 K=1,NTS2
+            XV(1,1)=XV1(K)
+            YV(1,1)=YV1(K)
+            ZV(1,1)=ZV1(K)
+            VALV(1,1)=ZERO
+            CALL CADIMA
+            VPOT(K)=VALV(1,1)
+            DO 420 I=1,NUMAT
+               IF(NAT(I).EQ.0) GOTO 420
+               AX=XV(1,1)-C(I,1)
+               AY=YV(1,1)-C(I,2)
+               AZ=ZV(1,1)-C(I,3)
+               R=SQRT(AX*AX+AY*AY+AZ*AZ)
+               VPOT(K)=VPOT(K)+CORE(NAT(I))/R
+  420       CONTINUE
+            VPOT(K)=VPOT(K)*FACTOR
+            WRITE(IPOT,480) K,XV(1,1),YV(1,1),ZV(1,1),VPOT(K)*CONV
+            IPR=IPR+1
+  430    CONTINUE
+         RETURN
+  440    FORMAT(//,12HITERATION = ,I2,//)
       END IF
 C
 C     ELSE DETERMINE POINTS WHERE MEP WILL BE COMPUTED
 C
-  111 FORMAT(I4,17F4.0)
-   25 FORMAT(1H1,2X,'POTENTIAL VALUES IN KCAL/MOLE',///)
-   26 FORMAT(F13.5,3X,F13.5,3X,F13.5,9X,F13.5)
-  613 FORMAT(I4,F13.5,3X,F13.5,3X,F13.5,9X,F13.5)
-   42 FORMAT(1H1,' COORDINATES OF THE POINTS ON THE MAP IN A. U.',///)
+  450 FORMAT(I4,17F4.0)
+  460 FORMAT(1H1,2X,'POTENTIAL VALUES IN KCAL/MOLE',///)
+  470 FORMAT(F13.5,3X,F13.5,3X,F13.5,9X,F13.5)
+  480 FORMAT(I4,F13.5,3X,F13.5,3X,F13.5,9X,F13.5)
+  490 FORMAT(1H1,' COORDINATES OF THE POINTS ON THE MAP IN A. U.',///)
       NPA=NINT(READA(KEYWRD,INDEX(KEYWRD,'MEP=')))
-      IF (NPA.EQ.1) GOTO 9003
+      IF (NPA.EQ.1) GOTO 580
 C
 C     MEP COMPUTED ON CONNOLLY'S SURFACE
 C
- 1010 FORMAT(/10X,'VANDER WAAL RADII SCALE FACTOR = ',F5.2)
- 1020 FORMAT(/10X,'PARAMETER FOR SURFACE GENERATION',//10X,
-     *            'INITIAL VANDER WAAL RADII SCALE FACTOR =',F5.2,
-     *       /10X,'SCALE FACTOR INCREMENT VALUE           =',F5.2,
-     *       /10X,'DENSITY OF POINTS PER UNIT AREA        =',F5.2,
-     *       /10X,'NUMBER OF SURFACES TO BE GENERATED     =',I5,//)
-      WRITE(18,1020) SCLE,SCINCR,DEN,NSURF
+  500 FORMAT(/10X,'VANDER WAAL RADII SCALE FACTOR = ',F5.2)
+  510 FORMAT(/10X,'PARAMETER FOR SURFACE GENERATION',//10X,
+     1            'INITIAL VANDER WAAL RADII SCALE FACTOR =',F5.2,
+     2       /10X,'SCALE FACTOR INCREMENT VALUE           =',F5.2,
+     3       /10X,'DENSITY OF POINTS PER UNIT AREA        =',F5.2,
+     4       /10X,'NUMBER OF SURFACES TO BE GENERATED     =',I5,//)
+      WRITE(IPOT,510) SCLE,SCINCR,DEN,NSURF
       IT345=0
-      DO 7120 I = 1,NSURF
-      IT455=IT345
-      CALL SURFAT(SCLE,DEN,IT345,VWXYZ)
-      IT455=IT345-IT455
-      WRITE(18,*) 'SURFACE ',I,' : ',IT455,' POINTS'
-      SCLE = SCLE + SCINCR
- 7120 CONTINUE
-      WRITE(18,*) 'TOTAL     : ',IT345,' POINTS'
-      DO 7247 I=1,IT345
-      DO 7247 J=1,3
-      VWXYZ(J,I)=VWXYZ(J,I)*1.8897626
-7247  CONTINUE
+      DO 520 I = 1,NSURF
+         IT455=IT345
+         CALL SURFAT(SCLE,DEN,IT345,VWXYZ)
+         IT455=IT345-IT455
+         WRITE(IPOT,*) 'SURFACE ',I,' : ',IT455,' POINTS'
+         SCLE = SCLE + SCINCR
+  520 CONTINUE
+      WRITE(IPOT,*) 'TOTAL     : ',IT345,' POINTS'
+      DO 530 I=1,IT345
+         DO 530 J=1,3
+            VWXYZ(J,I)=VWXYZ(J,I)*RECPA0      
+  530 CONTINUE
       ITUTUA=1000000
-      DO 7000 I=55,1,-1
-      DO 7001 J=1,64
-      IF (I*J.GT.IT345) GOTO 7000
-      IDIF(I,J)=IABS(IT345-I*J)
-      IF (IDIF(I,J).EQ.0) THEN
-      NPP=I
-      NY=J
-      GOTO 7002
-      ELSE IF (IDIF(I,J).GT.ITUTUA) THEN
-      GOTO 7001
-      ELSE
-      ITUTUA=IDIF(I,J)
-      NPP=I
-      NY=J
-      END IF
-7001  CONTINUE
-7000  CONTINUE
-7002  CONTINUE
-      DO 7004 I=1,NPP
-      DO 7004 J=1,NY
-      XV(I,J)=VWXYZ(1,J+(I-1)*NY)
-      YV(I,J)=VWXYZ(2,J+(I-1)*NY)
-      ZV(I,J)=VWXYZ(3,J+(I-1)*NY)
+      DO 550 I=55,1,-1
+         DO 540 J=1,64
+            IF (I*J.GT.IT345) GOTO 550
+            IDIF(I,J)=IABS(IT345-I*J)
+            IF (IDIF(I,J).EQ.0) THEN
+               NPP=I
+               NY=J
+               GOTO 560
+            ELSE IF (IDIF(I,J).GT.ITUTUA) THEN
+               GOTO 540
+            ELSE
+               ITUTUA=IDIF(I,J)
+               NPP=I
+               NY=J
+            END IF
+  540    CONTINUE
+  550 CONTINUE
+  560 CONTINUE
+      DO 570 I=1,NPP
+         DO 570 J=1,NY
+            XV(I,J)=VWXYZ(1,J+(I-1)*NY)
+            YV(I,J)=VWXYZ(2,J+(I-1)*NY)
+            ZV(I,J)=VWXYZ(3,J+(I-1)*NY)
 C     VALV(I,J)=ZERO
-7004  CONTINUE
-      GOTO 7005
+  570 CONTINUE
+      GOTO 790
 C
 C     MEP COMPUTED IN A CUBIC GRID OF POINTS
 C
@@ -732,84 +2024,84 @@ C              -
 C              -
 C              B
 C
-9003  DSS=DS
- 9002 APP=SQRT((XP1(1)-XP1(2))**2+(YP1(1)-YP1(2))**2+(ZP1(1)-ZP1(2))**2)
-      IF(APP-0.00001) 101,101,102
-  101 PN=0.
+  580 DSS=DS
+  590 APP=SQRT((XP1(1)-XP1(2))**2+(YP1(1)-YP1(2))**2+(ZP1(1)-ZP1(2))**2)
+      IF(APP-0.00001) 600,600,610
+  600 PN=0.
       DX=0.
       DY=0.
       DZ=0.
-      GO TO 123
-  102 PN=APP/DS
+      GO TO 620
+  610 PN=APP/DS
       DX=(XP1(2)-XP1(1))/PN
       DY=(YP1(2)-YP1(1))/PN
       DZ=(ZP1(2)-ZP1(1))/PN
-  123 ADD=SQRT((XP1(1)-XP1(3))**2+(YP1(1)-YP1(3))**2+(ZP1(1)-ZP1(3))**2)
-      IF(ADD-0.00001) 103,103,104
-  103 YN=0.
+  620 ADD=SQRT((XP1(1)-XP1(3))**2+(YP1(1)-YP1(3))**2+(ZP1(1)-ZP1(3))**2)
+      IF(ADD-0.00001) 630,630,640
+  630 YN=0.
       DX2=0.
       DY2=0.
       DZ2=0.
-      GO TO 108
-  104 DYD=DS*3.E0/5.E0
+      GO TO 650
+  640 DYD=DS*3.E0/5.E0
       YN=ADD/DYD
       DX2=(XP1(3)-XP1(1))/YN
       DY2=(YP1(3)-YP1(1))/YN
       DZ2=(ZP1(3)-ZP1(1))/YN
-  108 NY=YN+0.9+1.
+  650 NY=YN+0.9+1.
       IF(NY.GT.64) NY=64
       NPP=PN+0.9+1.
       IF(NPP.GT.55) NPP=55
       BAINT=FLOAT(NPP)*DS-DS
       CAINT=FLOAT(NY)*DYD-DYD
-7003  WRITE(18,38)
-   38 FORMAT(1H1,2X,15H     X(A.U.)   ,15H     Y(A.U.)   ,
-     *15H     Z(A.U.)   )
-      WRITE(18,69) XP1(1),YP1(1),ZP1(1)
-      WRITE(18,71) XP1(2),YP1(2),ZP1(2)
-      WRITE(18,72) XP1(3),YP1(3),ZP1(3)
-      WRITE(18,73) DX,DY,DZ
-      WRITE(18,74) DX2,DY2,DZ2
-      WRITE(18,75) NPP,NY
-      WRITE(18,76) APP,BAINT
-      WRITE(18,77) ADD,CAINT
-   69 FORMAT(4X,10HCOORD.OF A,5X,3(1X,F13.7,1X))
-   71 FORMAT(4X,10HCOORD.OF B,5X,3(1X,F13.7,1X))
-   72 FORMAT(4X,10HCOORD.OF C,5X,3(1X,F13.7,1X))
-   73 FORMAT(4X,10HVERT. INC.,5X,3(1X,F13.7,1X))
-   74 FORMAT(4X,10HHORIZ.INC.,5X,3(1X,F13.7,1X))
-   75 FORMAT(4X,15HMAP DIMENSION :,2X,I4,2X,I4)
-   76 FORMAT(4X,18HLENGTH AB REQUIRED,F12.7,2X,9HEFFECTIVE,F12.7)
-   77 FORMAT(4X,18HLENGTH AC REQUIRED,F12.7,2X,9HEFFECTIVE,F12.7)
+  660 WRITE(IPOT,670)
+  670 FORMAT(1H1,2X,15H     X(A.U.)   ,15H     Y(A.U.)   ,
+     115H     Z(A.U.)   )
+      WRITE(IPOT,680) XP1(1),YP1(1),ZP1(1)
+      WRITE(IPOT,690) XP1(2),YP1(2),ZP1(2)
+      WRITE(IPOT,700) XP1(3),YP1(3),ZP1(3)
+      WRITE(IPOT,710) DX,DY,DZ
+      WRITE(IPOT,720) DX2,DY2,DZ2
+      WRITE(IPOT,730) NPP,NY
+      WRITE(IPOT,740) APP,BAINT
+      WRITE(IPOT,750) ADD,CAINT
+  680 FORMAT(4X,10HCOORD.OF A,5X,3(1X,F13.7,1X))
+  690 FORMAT(4X,10HCOORD.OF B,5X,3(1X,F13.7,1X))
+  700 FORMAT(4X,10HCOORD.OF C,5X,3(1X,F13.7,1X))
+  710 FORMAT(4X,10HVERT. INC.,5X,3(1X,F13.7,1X))
+  720 FORMAT(4X,10HHORIZ.INC.,5X,3(1X,F13.7,1X))
+  730 FORMAT(4X,15HMAP DIMENSION :,2X,I4,2X,I4)
+  740 FORMAT(4X,18HLENGTH AB REQUIRED,F12.7,2X,9HEFFECTIVE,F12.7)
+  750 FORMAT(4X,18HLENGTH AC REQUIRED,F12.7,2X,9HEFFECTIVE,F12.7)
       XV(1,1)=XP1(1)
       YV(1,1)=YP1(1)
       ZV(1,1)=ZP1(1)
 C     VALV(1,1)=ZERO
-      IF (NPP.EQ.1.AND.NY.EQ.1) GO TO 7005
-      DO 52 I=1,NPP
-      IF (I.EQ.1) GO TO 54
-      XV(I,1)=XV(I-1,1)+DX
-      YV(I,1)=YV(I-1,1)+DY
-      ZV(I,1)=ZV(I-1,1)+DZ
-54    CONTINUE
-      DO 51 J=1,NY
-      IF (J.EQ.1) GO TO 51
-      XV(I,J)=XV(I,J-1)+DX2
-      YV(I,J)=YV(I,J-1)+DY2
-      ZV(I,J)=ZV(I,J-1)+DZ2
-51    CONTINUE
+      IF (NPP.EQ.1.AND.NY.EQ.1) GO TO 790
+      DO 780 I=1,NPP
+         IF (I.EQ.1) GO TO 760
+         XV(I,1)=XV(I-1,1)+DX
+         YV(I,1)=YV(I-1,1)+DY
+         ZV(I,1)=ZV(I-1,1)+DZ
+  760    CONTINUE
+         DO 770 J=1,NY
+            IF (J.EQ.1) GO TO 770
+            XV(I,J)=XV(I,J-1)+DX2
+            YV(I,J)=YV(I,J-1)+DY2
+            ZV(I,J)=ZV(I,J-1)+DZ2
+  770    CONTINUE
 C51   VALV(I,J)=ZERO
-52    CONTINUE
+  780 CONTINUE
 C
 C     POINTS HAVE BEEN DETERMINED AND THE ARRAY VALV HAS
 C     BEEN SET EQUAL TO ZERO
 C     NOW MEP WILL BE COMPUTED AT THESE POINTS
 C     FIRST INITIALIZE THE ARRAY VALV
 C
-7005  CONTINUE
-      DO 7006 I=1,NPP
-      DO 7006 J=1,NY
-7006  VALV(I,J)=ZERO
+  790 CONTINUE
+      DO 800 I=1,NPP
+         DO 800 J=1,NY
+  800 VALV(I,J)=ZERO
 C
 C     COMPUTE THE ELECTROSTATIC ELECTRON CONTRIBUTION
 C
@@ -818,26 +2110,26 @@ C7005 CALL CADIMA
 C
 C     NOW THE NUCLEAR CONTRIBUTION IS ADDED TO THE ARRAY VALV
 C
-      DO 21 I=1,NUMAT
-      IF (NAT(I).EQ.0) GO TO 21
-      DO 121 J1=1,NPP
-      DO 121 J2=1,NY
-      AX=XV(J1,J2)-C(I,1)
-      AY=YV(J1,J2)-C(I,2)
-      AZ=ZV(J1,J2)-C(I,3)
-      R=SQRT(AX*AX+AY*AY+AZ*AZ)
-      VALV(J1,J2)=VALV(J1,J2)+CORE(NAT(I))/R
-121   CONTINUE
-21    CONTINUE
+      DO 820 I=1,NUMAT
+         IF (NAT(I).EQ.0) GO TO 820
+         DO 810 J1=1,NPP
+            DO 810 J2=1,NY
+               AX=XV(J1,J2)-C(I,1)
+               AY=YV(J1,J2)-C(I,2)
+               AZ=ZV(J1,J2)-C(I,3)
+               R=SQRT(AX*AX+AY*AY+AZ*AZ)
+               VALV(J1,J2)=VALV(J1,J2)+CORE(NAT(I))/R
+  810    CONTINUE
+  820 CONTINUE
 C
 C     MEP HAS BEEN COMPUTED AND STORED IN ARRAY VALV
 C
 C     IF (INDEX(KEYWRD,'TOM').NE.0) THEN
-C     WRITE(18,614) ITERQ
+C     WRITE(IPOT,614) ITERQ
 C     END IF
 C14   FORMAT(//,12HITERATION = ,I2,//)
-   22 WRITE(18,25)
-      WRITE(18,42)
+  830 WRITE(IPOT,460)
+      WRITE(IPOT,490)
 C
 C     IF MST, TRANSFORM VALV IN VPOT AND VALUES ARE WRITTEN
 C
@@ -847,205 +2139,45 @@ C     DO 610 I=1,NPP
 C     DO 610 J=1,NY
 C     K=K+1
 C     VPOT(K)=VALV(I,J)
-C     WRITE(18,613) K,XV(I,J),YV(I,J),ZV(I,J),VALV(I,J)*CONV
+C     WRITE(IPOT,613) K,XV(I,J),YV(I,J),ZV(I,J),VALV(I,J)*CONV
 C10   CONTINUE
 C     RETURN
 C     END IF
-      DO 28 IR=1,NPP
-      DO 29 JR=1,NY
-      WRITE(18,26) XV(IR,JR),YV(IR,JR),ZV(IR,JR),VALV(IR,JR)*CONV
-29    CONTINUE
-   28 WRITE(18,2223)
- 2223 FORMAT(///)
-      IF(NPP.EQ.1.AND.NY.EQ.1) GO TO 8000
+      DO 850 IR=1,NPP
+         DO 840 JR=1,NY
+          WRITE(IPOT,470) XV(IR,JR),YV(IR,JR),ZV(IR,JR),VALV(IR,JR)*CONV
+  840    CONTINUE
+  850 WRITE(IPOT,860)
+  860 FORMAT(///)
+      IF(NPP.EQ.1.AND.NY.EQ.1) GO TO 920
 C     CREATES PLOT OUTPUT FILE ACCORDING TO IPLOT
 C8555 IF (NPA.EQ.2) GO TO 8000
       IPLANE=1
       IF (ABS(DX).GT.0.00001.OR.ABS(DX2).GT.0.00001) THEN
-      IPLANE=2
-      IF (ABS(DY).GT.0.00001.OR.ABS(DY2).GT.0.00001) IPLANE=3
+         IPLANE=2
+         IF (ABS(DY).GT.0.00001.OR.ABS(DY2).GT.0.00001) IPLANE=3
       END IF
-      WRITE(15,91) NATOMS,IPLANE,NPP*NY
-91    FORMAT(I4,3X,I1,3X,I5)
-      DO 93 I=1,NATOMS
-93    WRITE(15,94) IAN(I),C(I,1),C(I,2),C(I,3)
-94    FORMAT(1X,I3,3(1X,F12.7))
-      DO 95 IR=1,NPP
-      DO 95 JR=1,NY
-      WRITE(15,96) XV(IR,JR),YV(IR,JR),ZV(IR,JR),VALV(IR,JR)*CONV
-95    CONTINUE
-96    FORMAT(3(1X,F12.7),1X,F13.5)
-8000  RETURN
+      WRITE(IMEP,870) NATOMS,IPLANE,NPP*NY
+  870 FORMAT(I4,3X,I1,3X,I5)
+      DO 880 I=1,NATOMS
+  880 WRITE(IMEP,890) IAN(I),C(I,1),C(I,2),C(I,3)
+  890 FORMAT(1X,I3,3(1X,F12.7))
+      DO 900 IR=1,NPP
+         DO 900 JR=1,NY
+          WRITE(IMEP,910) XV(IR,JR),YV(IR,JR),ZV(IR,JR),VALV(IR,JR)*CONV
+  900 CONTINUE
+  910 FORMAT(3(1X,F12.7),1X,F13.5)
+  920 RETURN
       END
-      SUBROUTINE BPRINT
+      SUBROUTINE MULTV(V,A,W)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      REAL*8 IATOM
-C     REAL*8 IAO,IAO2S,IAO2P,IAO3S,IAO3P
-      REAL*8 IAO2S,IAO2P,IAO3S,IAO3P
-      INTEGER SHELLA,SHELLN,SHELLT,SHELLC,AOS,SHLADF
-      INTEGER SKIP1,SKIP2,STAR,STAR2
-C
-C     COMMON/DATBAS/NTYBAS,NUMG,NTYPOL,NTYGD,NTYSPD,NBAMOD
-      COMMON/B/EXX(360),C1(360),C2(360),C3(360),X(90),Y(90),Z(90),
-     $         JAN(90),SHELLA(90),SHELLN(90),SHELLT(90),SHELLC(90),
-     $         AOS(90),AON(90),NSHELL,MAXTYP
-      DIMENSION SHLADF(90),C4(90)
-      EQUIVALENCE(C4(1),C3(91)),(SHLADF(1),C3(181))
-C
-C     COMMON/IO/IN,IOUT,IPUNCH
-C
-      COMMON/SCALE/SCALE(90)
-C     COMMON/IFBP/IFBP
-C     COMMON/IAO/IAO(4)
-C
-      DIMENSION IATOM(37,2),INCR(4,3)
-C
-C     DATA IAO1S/6H    1S/
-      DATA IAO2S/6H    2S/,IAO2P/6H    2P/
-      DATA IAO3S/6H    3S/,IAO3P/6H    3P/
-      DATA THR1/1.0E-08/
-      DATA INCR/4*0,0,1,4,10,2*0,4,10/
-      DATA IATOM/4H  HY,4H    ,4H   L,4H BER,4H    ,4H    ,4H  NI,
-     $           4H    ,4H  FL,4H    ,4H    ,4H MAG,4H ALU,4H   S,
-     $           4HPHOS,4H    ,4H  CH,4H    ,4H POT,4H   C,4H  SC,
-     $           4H  TI,4H  VA,4H  CH,4H MAN,4H    ,4H    ,4H    ,
-     $           4H    ,4H    ,4H   G,4H GER,4H   A,4H   S,4H   B,
-     $           4H   K,4H    ,
-     $ 6HDROGEN,6HHELIUM,6HITHIUM,6HYLLIUM,6H BORON,6HCARBON,6HTROGEN,
-     $ 6HOXYGEN,6HUORINE,6H  NEON,6HSODIUM,6HNESIUM,6HMINIUM,6HILICON,
-     $ 6HPHORUS,6HSULFUR,6HLORINE,6H ARGON,6HASSIUM,6HALCIUM,6HANDIUM,
-     $ 6HTANIUM,6HNADIUM,6HROMIUM,6HGANESE,6H  IRON,6HCOBALT,6HNICKEL,
-     $ 6HCOPPER,6H  ZINC,6HALLIUM,6HMANIUM,6HRSENIC,6HLENIUM,6HROMINE,
-     $ 6HRYPTON,6HBANQUO/
-      DATA ZERO/0.0E0/,AP/1H /,PST/1H*/
-C
- 2001 FORMAT(2H *,129(1H-),1H*)
- 2002 FORMAT(2H *,A4,A6,3F9.5,92X,1H*)
- 2003 FORMAT(2A1,45X,I3,3X,A6,5X,F5.2,62X,A1)
- 2004 FORMAT(2A1,41X,I3,1H-,I3,3X,A6,5X,F5.2,62X,A1)
- 2005 FORMAT(2A1,69X,5E12.6,A1)
- 2006 FORMAT(1X,131(1H*))
- 2007 FORMAT(2H *,13X,13HATOMIC CENTER,13X,1H*,8X,14HATOMIC ORBITAL,
-     $ 7X,1H*,21X,18HGAUSSIAN FUNCTIONS,20X,1H*)
- 2008 FORMAT(2H *,39X,1H*,1X,8HFUNCTION,4X,5HSHELL,4X,5HSCALE,2X,1H*,59X
-     $,1H*)
- 2009 FORMAT(2H *,4X,4HATOM,3X,7HX-COORD,2X,7HY-COORD,2X,7HZ-COORD,
-     $ 3X,1H*,2X,6HNUMBER,5X,4HTYPE,5X,6HFACTOR,1X,1H*,2X,8HEXPONENT,
-     $ 4X,6HS-COEF,6X,6HP-COEF,6X,6HD-COEF,6X,6HF-COEF,3X,1H*)
- 2010 FORMAT(2H *,129X,1H*)
- 2012 FORMAT(11H0THERE ARE ,I4,21H PRIMITIVE GAUSSIANS./)
-C
-C     TEST FOR PRINTING OF B-TABLE.
-C     IF( (KOP.EQ.2)
-C    $  .OR. (KOP.EQ.0.AND.IFBP.EQ.0) )
-C    $  GO TO 140
-      WRITE(18,2006)
-      WRITE(18,2007)
-      WRITE(18,2006)
-      WRITE(18,2008)
-      WRITE(18,2009)
-      WRITE(18,2006)
-C
-      NPRIMS=0
-C
-C     COMMENCE LOOP OVER SHELLS.
-      DO 130 ISHELL=1,NSHELL
-C
-C     TEST FOR FIRST PASS THROUGH LOOP.  IN THE FIRST PASS,
-C     WE MUST PROCESS THE FIRST ATOM.
-      IF(ISHELL-1)10,20,10
-C
-C     NOT FIRST PASS, COMPUTE DIFF AND TEST FOR STEP TO NEW ATOM.
-   10 DIFF= ABS(X1-X(ISHELL))+ ABS(X2-Y(ISHELL))+ ABS(X3-Z(ISHELL))
-      IF(DIFF-THR1)70,70,20
-C
-C     STEP TO NEW ATOM.
-C     OBTAIN ATOMIC NUMBER AND TEST FOR BANQUO ATOM.
-   20 IA=JAN(ISHELL)
-C     IF (NTYBAS.LT.5.OR.NTYBAS.GE.7) GOTO 27
-      IF (AON(ISHELL).EQ.IAO2S) IA=JAN(ISHELL)+2
-      IF (AON(ISHELL).EQ.IAO2P) IA=JAN(ISHELL)+2
-      IF (AON(ISHELL).EQ.IAO3S) IA=JAN(ISHELL)+10
-      IF (AON(ISHELL).EQ.IAO3P) IA=JAN(ISHELL)+10
-   27 IF(IA)40,30,40
-   30 IA=37
-C     OBTAIN COORDINATES.
-   40 X1=X(ISHELL)
-      X2=Y(ISHELL)
-      X3=Z(ISHELL)
-C     DO NOT PRINT MINUS LINE IF ISHELL=1.
-      IF(ISHELL-1)60,60,50
-   50 WRITE(18,2001)
-C     PRINT ATOM NAME AND COORDINATES.
-   60 WRITE(18,2002)IATOM(IA,1),IATOM(IA,2),X1,X2,X3
-C     SET SKIP1 TO SUPPRESS LINE SKIPPING LATER ON.
-      SKIP1=AP
-      STAR=PST
-      ISKIP=0
-C
-C     PROCESSING FOR SHELL INFORMATION LINE.
-C     OBTAIN INDICES FOR NSTART INCREMENT.
-   70 I=SHELLT(ISHELL)+1
-      J=SHELLC(ISHELL)+1
-      IP=SHELLT(ISHELL+1)+1
-      JP=SHELLC(ISHELL+1)+1
-C
-C     OBTAIN NSTART AND NEND.
-C     NOTE THAT NSTART IS INCREMENTED ACCORDING TO THE SHELL TYPE AND
-C     SHELL CONSTRAINT.
-      NSTART=AOS(ISHELL)+INCR(I,J)
-      NEND=AOS(ISHELL+1)-1+INCR(IP,JP)
-      NDIFF=NEND-NSTART+1
-C     PRINT OF SHELL INFORMATION LINE DEPENDS ON WHETHER
-C     NSTART=NEND.
-      SCALEI=SCALE(ISHELL)
-      IF(NSTART-NEND)90,80,90
-   80 WRITE(18,2003)SKIP1,STAR,NSTART,AON(ISHELL),SCALEI,STAR
-      GO TO 100
-   90 WRITE(18,2004)SKIP1,STAR,NSTART,NEND,AON(ISHELL),SCALEI,STAR
-  100 SKIP1=AP
-      STAR=PST
-      ISKIP=1
-C
-C     OUTPUT THE GAUSSIAN FUNCTION INFORMATION.
-      NGAUSS=SHELLN(ISHELL)
-      I=SHELLA(ISHELL)-1
-      J=SHLADF(ISHELL)
-      DO 125 IGAUSS=1,NGAUSS
-      SKIP2=AP
-      STAR2=PST
-      IF(IGAUSS-1)120,110,120
-  110 SKIP2=AP
-      STAR2=PST
-C     CORRECT PRINTED EXPONENT.
-  120 EXXI=EXX(IGAUSS+I)/(SCALEI**2)
-      C3A=ZERO
-      C4A=ZERO
-      IF(J)125,125,121
-  121 C3A=C3(J)
-      C4A=C4(J)
-      J=J+1
-  125 WRITE(18,2005)SKIP2,STAR2,EXXI,C1(IGAUSS+I),C2(IGAUSS+I),C3A,
-     $ C4A,STAR2
-C
-  130 NPRIMS=NPRIMS+NDIFF*NGAUSS
-      WRITE(18,2006)
-      WRITE(18,2012) NPRIMS
-      WRITE(18,2006)
-C     GO TO 160
-C
-C     IN NO-PRINT MODE, MERELY DETERMINE THE NUMBER OF PRIMITIVE
-C     GAUSSIANS.
-C 140 NPRIMS=0
-C     DO 150 ISHELL=1,NSHELL
-C     I=SHELLT(ISHELL)+1
-C     J=SHELLC(ISHELL)+1
-C     IP=SHELLT(ISHELL+1)+1
-C     JP=SHELLC(ISHELL+1)+1
-C 150 NPRIMS=NPRIMS+((AOS(ISHELL+1)-1+INCR(IP,JP))
-C    $             -(AOS(ISHELL)+INCR(I,J))+1)*SHELLN(ISHELL)
-C
-  160 RETURN
+      DIMENSION A(3,3)
+      DIMENSION V(3)
+      DIMENSION W(3)
+      DO 10 I = 1, 3
+         W(I) = A(I,1)*V(1) + A(I,2)*V(2) + A(I,3)*V(3)
+   10 CONTINUE
+      RETURN
       END
       SUBROUTINE PEDRA
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
@@ -1057,67 +2189,57 @@ C     COMMON ANTOAU,FCONV(3),ICDUM(131)
       COMMON/MSTXYZ/XV(3575),YV(3575),ZV(3575),NTS
       COMMON/POLY/XE(500),YE(500),ZE(500),RE(500),
      1SSFE(500),
-     *IPLOCH(1500),AS(1500),STOT,VOL,NSF,NC(NUMATM)
-      COMMON/MSTQ/QS(1500),MFLAG
+     2IPLOCH(1500),AS(1500),STOT,VOL,NSF,NC(NUMATM)
+      COMMON/MSTQ/QS(1500),MFLAG,ITERQ
       COMMON/CLASES/ICLASS(NUMATM)
-      COMMON/FINAL/GVW,GVWS
-      DIMENSION X0(1500),Y0(1500),Z0(1500),RES(500),QSFE(500),
-     1SRE(500),QSFE1(500),QSFE2(500),QSOR(1500)
-      DIMENSION XV1(1500),YV1(1500),ZV1(1500),RV1(1500),RERI(500),
-     *POT(1500),QS1(1500),QSO(1500),POTS(1500)
+      COMMON/FINAL/GVW,GVWS,ELC1,EC1
+      COMMON /FUNCON/ FPC(2,10),IFPC
+      DIMENSION X0(1500),Y0(1500),Z0(1500),
+     1SRE(500)
+      DIMENSION XV1(1500),YV1(1500),ZV1(1500),RV1(1500)
 C     DIMENSION X9(1500),Y9(1500),Z9(1500),X91(1500),Y91(1500)
 C     DIMENSION Z91(1500),QXY(1500),QXY2(1500),POT2(1500)
 C     DIMENSION SCR1(10726),SCR2(4880)
 C     EQUIVALENCE (SCR1(1),XV(1)),(SCR2(1),XE(1))
-C ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-C          LA DIMENSION DE X9,Y9 Y QXY, COORDENADAS Y CARGA DE LAS
-C          TESSERAE DE LA INTERFASE, PODRA AJUSTARSE TRAS LA ADECUA-
-C          DA EVALUACION DEL "RADIO DE ACCION" DEL EFECTO DE LA SUP.
-C
-C ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-      DIMENSION QSIN(1500),ASI(1500),IDUM(360)
-      DIMENSION OVV(4,4),ISOLV(1500),JMM(55,65)
-      DIMENSION JM(60),DU(6002),DMM(1441)
+      DIMENSION IDUM(360)
+      DIMENSION JM(60)
       DIMENSION ASP(60),THEC(12),FIC(12),THEV(24),FIV(24),JVT1(6,60)
       DIMENSION JVT2(3,4),FM(4),CV(122,3),XC(60),YC(60),ZC(60),IDF(122)
       DIMENSION IJE(60),NV(6),CVN3(6,3),IDF3(6),CVN4(6,3),IDF4(6)
       DIMENSION CVN5(6,3),IDF5(6)
+      COMMON /CHANEL/ IFILES(30)
+      EQUIVALENCE (IW,IFILES(6)),(ISOL,IFILES(17))
       EQUIVALENCE (IDUM(1),JVT1(1,1))
 C
 C     DATA IOUT/6/,IN/5/
-      DATA ANTOAU/1.8897626D0/
-      DATA ZERO,FIRST,SECOND/0.D0,0.0174533D0,0.529167D0/
-      DATA THIRD/.150383D0/,UN2/0.5D0/
       DATA TWO/2.D0/,FOUR/4.D0/
-C     DATA ONE/1.0D0/,DR/0.02D0/,MC/4/,MD/6/,CEKM/0.0014389D0/
-      DATA ONE/1.0D0/,MD/6/,CEKM/0.0014389D0/
-      DATA PI/3.1415927D0/,GC/1.9865D0/,AV/0.60228D0/,CKCAL/627.76D0/
+      DATA ONE/1.0D0/,MD/6/
       DATA THEC/0.3625764052D0,0.7445723125D0,1.028422216 D0,
-     $          1.028422216 D0,1.408599564 D0,1.408599564 D0,
-     $          1.732993090 D0,1.732993090 D0,2.113170438 D0,
-     $          2.113170438 D0,2.397020341 D0,2.779016248 D0/
+     1          1.028422216 D0,1.408599564 D0,1.408599564 D0,
+     2          1.732993090 D0,1.732993090 D0,2.113170438 D0,
+     3          2.113170438 D0,2.397020341 D0,2.779016248 D0/
       DATA FIC/0.0D0         ,0.0D0         ,0.8518232700D0,
-     $         0.4048137915D0,1.043782503 D0,0.2128545579D0,
-     $         0.4154639728D0,0.8411730887D0,0.2235047392D0,
-     $         1.033132322 D0,0.6283185307D0,0.6283185307D0/
+     1         0.4048137915D0,1.043782503 D0,0.2128545579D0,
+     2         0.4154639728D0,0.8411730887D0,0.2235047392D0,
+     3         1.033132322 D0,0.6283185307D0,0.6283185307D0/
       DATA THEV/0.6523581398D0,1.107148718 D0,1.382085796 D0,
-     &          1.759506858 D0,2.034443936 D0,2.489234514 D0,
-     &                         0.3261790699D0,0.5535743589D0,
-     &          0.8559571251D0,0.8559571251D0,1.017221968 D0,
-     &          1.229116717 D0,1.229116717 D0,1.433327788 D0,
-     &          1.570796327 D0,1.570796327 D0,1.708264866 D0,
-     &          1.912475937 D0,1.912475937 D0,2.124370686 D0,
-     &          2.285635528 D0,2.285635528 D0,2.588018295 D0,
-     &          2.815413584 D0/
+     1          1.759506858 D0,2.034443936 D0,2.489234514 D0,
+     2                         0.3261790699D0,0.5535743589D0,
+     3          0.8559571251D0,0.8559571251D0,1.017221968 D0,
+     4          1.229116717 D0,1.229116717 D0,1.433327788 D0,
+     5          1.570796327 D0,1.570796327 D0,1.708264866 D0,
+     6          1.912475937 D0,1.912475937 D0,2.124370686 D0,
+     7          2.285635528 D0,2.285635528 D0,2.588018295 D0,
+     8          2.815413584 D0/
       DATA FIV/               0.6283185307D0,0.0000000000D0,
-     &         0.6283185307D0,0.0000000000D0,0.6283185307D0,
-     &         0.0000000000D0,0.6283185307D0,0.0000000000D0,
-     &         0.2520539002D0,1.004583161 D0,0.6283185307D0,
-     &         0.3293628477D0,0.9272742138D0,0.0000000000D0,
-     &         0.3141592654D0,0.9424777961D0,0.6283185307D0,
-     &         0.2989556830D0,0.9576813784D0,0.0000000000D0,
-     &         0.3762646305D0,0.8803724309D0,0.6283188307D0,
-     &         0.0000000000D0/
+     1         0.6283185307D0,0.0000000000D0,0.6283185307D0,
+     2         0.0000000000D0,0.6283185307D0,0.0000000000D0,
+     3         0.2520539002D0,1.004583161 D0,0.6283185307D0,
+     4         0.3293628477D0,0.9272742138D0,0.0000000000D0,
+     5         0.3141592654D0,0.9424777961D0,0.6283185307D0,
+     6         0.2989556830D0,0.9576813784D0,0.0000000000D0,
+     7         0.3762646305D0,0.8803724309D0,0.6283188307D0,
+     8         0.0000000000D0/
       DATA FIR/1.256637061 D0/
       DATA IDUM(  1)/   1/
       DATA IDUM(  2)/   6/
@@ -1480,30 +2602,37 @@ C     DATA ONE/1.0D0/,DR/0.02D0/,MC/4/,MD/6/,CEKM/0.0014389D0/
       DATA IDUM(359)/ 117/
       DATA IDUM(360)/ 116/
       DATA JVT2/   4,   5,   1,
-     &             2,   5,   6,
-     &             4,   3,   6,
-     &             4,   5,   6/
+     1             2,   5,   6,
+     2             4,   3,   6,
+     3             4,   5,   6/
       DATA FM/0.25,0.0625,0.015625,0.00390625/
+      DATA PI/3.1415927D0/
 C
- 2700 FORMAT(I4,6F10.5,I4)
- 2800 FORMAT(5F10.5)
- 2810 FORMAT(4F10.5)
- 2820 FORMAT(I5,4F10.3,F18.3)
- 3000 FORMAT(I4,4F10.5,I4)
- 3333 FORMAT(F10.5,4I4)
+C   0.0174533 = 3.14159.../180
 C
-C          LETTURA DEII DATI
+      DATA FIRST/0.0174533D0/
+      DATA UN2/0.5D0/
+      ANTOAU=1.D0/FPC(IFPC,3)
+C
+   10 FORMAT(I4,6F10.5,I4)
+   20 FORMAT(5F10.5)
+   30 FORMAT(4F10.5)
+   40 FORMAT(I5,4F10.3,F18.3)
+   50 FORMAT(I4,4F10.5,I4)
+   60 FORMAT(F10.5,4I4)
+C
+C        COORDINATES ARE TRANSFORMED
 C
       NSF=NESF
       IF(ICENT.EQ.1)THEN
-      DO 55 I=1,NESF
-      XE(I)=C(NC(I),1)/ANTOAU
-      YE(I)=C(NC(I),2)/ANTOAU
-      ZE(I)=C(NC(I),3)/ANTOAU
-   55 CONTINUE
+         DO 70 I=1,NESF
+            XE(I)=C(NC(I),1)/ANTOAU
+            YE(I)=C(NC(I),2)/ANTOAU
+            ZE(I)=C(NC(I),3)/ANTOAU
+   70    CONTINUE
       END IF
 C********************************************************************
-C     CREACION DE ESFERAS
+C    THE CAVITY IS BUILT UP FROM THE SPHERES
 C********************************************************************
       OMEGA=OMEGA*FIRST
       SENOM=DSIN(OMEGA)
@@ -1515,105 +2644,105 @@ C     RTD=RD*0.1547005
       NN=2
       NE=NESF
       NEV=NESF
-      GO TO 600
-  601 NN=NE+1
+      GO TO 90
+   80 NN=NE+1
       NE=NET
-  600 DO 602 I=NN,NE
-      NES=I-1
-      DO 603 J=1,NES
-C     WRITE(17,8000)NN,NE,NES,I,J
- 8000 FORMAT(' NN ',I4,'   NE',I4,'   NES',I4,'   I',I4,'   J',I4)
- 8100 FORMAT(4F20.10)
-      RIJ2=(XE(I)-XE(J))**2+
-     $     (YE(I)-YE(J))**2+
-     $     (ZE(I)-ZE(J))**2
-C     WRITE(17,8100)RIJ2
-      RIJ=DSQRT(RIJ2)
-C     WRITE(17,8100)RIJ
-      RJD=RE(J)+RD
-      TEST1=RE(I)+RJD+RD
-      IF(RIJ.GE.TEST1) GO TO 603
-      REG=DMAX1(RE(I),RE(J))
-      REP=DMIN1(RE(I),RE(J))
-      REG2=REG*REG
-      REP2=REP*REP
-      TEST2=REP*SENOM+DSQRT(REG2-REP2*COSOM2)
-      IF(RIJ.LE.TEST2) GO TO 603
-      REGD2=(REG+RD)*(REG+RD)
-      TEST3=(REGD2+REG2-RTDD2)/REG
-      IF(RIJ.GE.TEST3) GO TO 603
-      DO 604 K=1,NEV
-      IF(K.EQ.J .OR. K.EQ.I) GO TO 604
-      RJK2=(XE(J)-XE(K))**2+
-     $     (YE(J)-YE(K))**2+
-     $     (ZE(J)-ZE(K))**2
-      IF(RJK2.GE.RIJ2) GO TO 604
-      RIK2=(XE(I)-XE(K))**2+
-     $     (YE(I)-YE(K))**2+
-     $     (ZE(I)-ZE(K))**2
-      IF(RIK2.GE.RIJ2) GO TO 604
-       RJK=DSQRT(RJK2)
-       RIK=DSQRT(RIK2)
-       SP=(RIJ+RJK+RIK)/2.0D0
-       HH=4*(SP*(SP-RIJ)*(SP-RIK)*(SP-RJK))/RIJ2
-       REO=RE(K)*FRO
-      IF(K.GE.NE)REO=0.0002D0
-      REO2=REO*REO
-      IF(HH.LT.REO2) GO TO 603
-  604 CONTINUE
-      REPD2=(REP+RD)**2
-      TEST8=DSQRT(REPD2-RTDD2)+DSQRT(REGD2-RTDD2)
-      IF(RIJ.LE.TEST8)GO TO 605
-      REND2=REGD2+REG2-(REG/RIJ)*(REGD2+RIJ2-REPD2)
-      IF(REND2.LE.RTDD2) GO TO 603
-      REN=DSQRT(REND2)-RD
-      FC=REG/(RIJ-REG)
-      TEST7=REG-RE(I)
-      KG=I
-      KP=J
-      IF(TEST7.LE.0.000000001D0) GO TO 606
-      KG=J
-      KP=I
-  606 FC1=FC+1.0
-      XEN=(XE(KG)+FC*XE(KP))/FC1
-      YEN=(YE(KG)+FC*YE(KP))/FC1
-      ZEN=(ZE(KG)+FC*ZE(KP))/FC1
-      GO TO 607
-  605 R2GN=RIJ-REP+REG
-      RGN=R2GN/2.0D0
-      FC=R2GN/(RIJ+REP-REG)
-      FC1=FC+1.0D0
-      TEST7=REG-RE(I)
-      KG=I
-      KP=J
-      IF(TEST7.LE.0.000000001D0) GO TO 610
-      KG=J
-      KP=I
-  610 XEN=(XE(KG)+FC*XE(KP))/FC1
-      YEN=(YE(KG)+FC*YE(KP))/FC1
-      ZEN=(ZE(KG)+FC*ZE(KP))/FC1
-      REN=DSQRT(REGD2+RGN*(RGN-(REGD2+RIJ2-REPD2)/RIJ))-RD
-  607 NET=NET+1
-      XE(NET)=XEN
-      YE(NET)=YEN
-      ZE(NET)=ZEN
-      RE(NET)=REN
-  603 CONTINUE
-      NEV=NET
-  602 CONTINUE
-      IF(NET.NE.NE) GO TO 601
+   90 DO 180 I=NN,NE
+         NES=I-1
+         DO 170 J=1,NES
+C     WRITE(ISOL,8000)NN,NE,NES,I,J
+  100       FORMAT(' NN ',I4,'   NE',I4,'   NES',I4,'   I',I4,'   J',I4)
+  110       FORMAT(4F20.10)
+            RIJ2=(XE(I)-XE(J))**2+
+     1     (YE(I)-YE(J))**2+
+     2     (ZE(I)-ZE(J))**2
+C     WRITE(ISOL,8100)RIJ2
+            RIJ=DSQRT(RIJ2)
+C     WRITE(ISOL,8100)RIJ
+            RJD=RE(J)+RD
+            TEST1=RE(I)+RJD+RD
+            IF(RIJ.GE.TEST1) GO TO 170
+            REG=DMAX1(RE(I),RE(J))
+            REP=DMIN1(RE(I),RE(J))
+            REG2=REG*REG
+            REP2=REP*REP
+            TEST2=REP*SENOM+DSQRT(REG2-REP2*COSOM2)
+            IF(RIJ.LE.TEST2) GO TO 170
+            REGD2=(REG+RD)*(REG+RD)
+            TEST3=(REGD2+REG2-RTDD2)/REG
+            IF(RIJ.GE.TEST3) GO TO 170
+            DO 120 K=1,NEV
+               IF(K.EQ.J .OR. K.EQ.I) GO TO 120
+               RJK2=(XE(J)-XE(K))**2+
+     1     (YE(J)-YE(K))**2+
+     2     (ZE(J)-ZE(K))**2
+               IF(RJK2.GE.RIJ2) GO TO 120
+               RIK2=(XE(I)-XE(K))**2+
+     1     (YE(I)-YE(K))**2+
+     2     (ZE(I)-ZE(K))**2
+               IF(RIK2.GE.RIJ2) GO TO 120
+               RJK=DSQRT(RJK2)
+               RIK=DSQRT(RIK2)
+               SP=(RIJ+RJK+RIK)/2.0D0
+               HH=4*(SP*(SP-RIJ)*(SP-RIK)*(SP-RJK))/RIJ2
+               REO=RE(K)*FRO
+               IF(K.GE.NE)REO=0.0002D0
+               REO2=REO*REO
+               IF(HH.LT.REO2) GO TO 170
+  120       CONTINUE
+            REPD2=(REP+RD)**2
+            TEST8=DSQRT(REPD2-RTDD2)+DSQRT(REGD2-RTDD2)
+            IF(RIJ.LE.TEST8)GO TO 140
+            REND2=REGD2+REG2-(REG/RIJ)*(REGD2+RIJ2-REPD2)
+            IF(REND2.LE.RTDD2) GO TO 170
+            REN=DSQRT(REND2)-RD
+            FC=REG/(RIJ-REG)
+            TEST7=REG-RE(I)
+            KG=I
+            KP=J
+            IF(TEST7.LE.0.000000001D0) GO TO 130
+            KG=J
+            KP=I
+  130       FC1=FC+1.0
+            XEN=(XE(KG)+FC*XE(KP))/FC1
+            YEN=(YE(KG)+FC*YE(KP))/FC1
+            ZEN=(ZE(KG)+FC*ZE(KP))/FC1
+            GO TO 160
+  140       R2GN=RIJ-REP+REG
+            RGN=R2GN/2.0D0
+            FC=R2GN/(RIJ+REP-REG)
+            FC1=FC+1.0D0
+            TEST7=REG-RE(I)
+            KG=I
+            KP=J
+            IF(TEST7.LE.0.000000001D0) GO TO 150
+            KG=J
+            KP=I
+  150       XEN=(XE(KG)+FC*XE(KP))/FC1
+            YEN=(YE(KG)+FC*YE(KP))/FC1
+            ZEN=(ZE(KG)+FC*ZE(KP))/FC1
+            REN=DSQRT(REGD2+RGN*(RGN-(REGD2+RIJ2-REPD2)/RIJ))-RD
+  160       NET=NET+1
+            XE(NET)=XEN
+            YE(NET)=YEN
+            ZE(NET)=ZEN
+            RE(NET)=REN
+  170    CONTINUE
+         NEV=NET
+  180 CONTINUE
+      IF(NET.NE.NE) GO TO 80
       NESF=NET
-C     WRITE(17,620)NESF
-  620 FORMAT(//,'NUMERO DE ESFERAS TOTALES =',I5,/)
+C     WRITE(ISOL,620)NESF
+  190 FORMAT(//,'TOTAL NUMBER OF SPHERES =',I5,/)
 C*********************************************************************
-C     TESELACION DE LA SUPERFICIE
+C     SPLITTING OF THE CAVITY SURFACE IN SMALL SURFACE ELEMENTS
 C*********************************************************************
- 3100 JJ=0
+  200 JJ=0
       IJ=0
       DRD=TWO*DR
-      VOL=ZERO
-      STOT=ZERO
-C*****COORDENADAS DE LOS VERTICES PARA ESFERA DE RADIO UNO********
+      VOL=0.D0
+      STOT=0.D0
+C*****COORDINATES OF VERTEX FOR A SPHERE OF RADIUS UNITY********
       CV(1,1)=0.D0
       CV(1,2)=0.D0
       CV(1,3)=1.D0
@@ -1621,542 +2750,537 @@ C*****COORDENADAS DE LOS VERTICES PARA ESFERA DE RADIO UNO********
       CV(122,2)=0.D0
       CV(122,3)=-1.D0
       II=1
-      DO 520 I=1,24
-      TH=THEV(I)
-      FI=FIV(I)
-      CTH=DCOS(TH)
-      STH=DSIN(TH)
-      DO 521 J=1,5
-      FI=FI+FIR
-      IF(J.EQ.1) FI=FIV(I)
-      II=II+1
-      CV(II,1)=STH*DCOS(FI)
-      CV(II,2)=STH*DSIN(FI)
-      CV(II,3)=CTH
-  521 CONTINUE
-  520 CONTINUE
-C*****COORDENADAS DE LOS CENTROS PARA ESFERA DE RADIO UNO*****
+      DO 220 I=1,24
+         TH=THEV(I)
+         FI=FIV(I)
+         CTH=DCOS(TH)
+         STH=DSIN(TH)
+         DO 210 J=1,5
+            FI=FI+FIR
+            IF(J.EQ.1) FI=FIV(I)
+            II=II+1
+            CV(II,1)=STH*DCOS(FI)
+            CV(II,2)=STH*DSIN(FI)
+            CV(II,3)=CTH
+  210    CONTINUE
+  220 CONTINUE
+C*****COORDINATES OF CENTER FOR A SPHERE OF RADIUS UNITY *****
       II=0
-      DO 522 I=1,12
-      TH=THEC(I)
-      FI=FIC(I)
-      CTH=DCOS(TH)
-      STH=DSIN(TH)
-      DO 523 J=1,5
-      FI=FI+FIR
-      IF(J.EQ.1) FI=FIC(I)
-      II=II+1
-      XC(II)=STH*DCOS(FI)
-      YC(II)=STH*DSIN(FI)
-      ZC(II)=CTH
-  523 CONTINUE
-  522 CONTINUE
+      DO 240 I=1,12
+         TH=THEC(I)
+         FI=FIC(I)
+         CTH=DCOS(TH)
+         STH=DSIN(TH)
+         DO 230 J=1,5
+            FI=FI+FIR
+            IF(J.EQ.1) FI=FIC(I)
+            II=II+1
+            XC(II)=STH*DCOS(FI)
+            YC(II)=STH*DSIN(FI)
+            ZC(II)=CTH
+  230    CONTINUE
+  240 CONTINUE
 C********************************************************************
-C     DETERMINACION DE LA GEOMETRIA DE LA CAVIDAD ESFERA A ESFERA
+C     DETERMINE THE CAVITY GEOMETRY FROM EVERY SPHERE               
 C********************************************************************
-      DO 1 I=1,NESF
-      SSFE(I)=ZERO
-      REI=RE(I)
-      SRE(I)=FOUR*PI*REI*REI
-      REIM=REI-DR
-      XEI=XE(I)
-      YEI=YE(I)
-      ZEI=ZE(I)
-      DO 71 J=1,60
-   71 JM(J)=1
-      DO 501 J=1,122
-  501 IDF(J)=1
-      IIJ=0
+      DO 670 I=1,NESF
+         SSFE(I)=0.D0
+         REI=RE(I)
+         SRE(I)=FOUR*PI*REI*REI
+         REIM=REI-DR
+         XEI=XE(I)
+         YEI=YE(I)
+         ZEI=ZE(I)
+         DO 250 J=1,60
+  250    JM(J)=1
+         DO 260 J=1,122
+  260    IDF(J)=1
+         IIJ=0
 C******************************************************************
-C      DETERMINA SI LOS VERTICES DE LA ESFERA I ESTAN DENTRO O FUERA
-C      Y QUE ESFERAS CORTAN A LA ESFERA I
+C      ARE THE VERTEX OF SPHERE I INSIDE OR OUTSIDE?
+C      DETERMINE SPHERES INTERSECTING SPHERE I
 C*******************************************************************
-      DO 500 J=1,NESF
-      IF(I.EQ.J) GO TO 500
-      DIJ2=(XEI-XE(J))*(XEI-XE(J))+
-     &     (YEI-YE(J))*(YEI-YE(J))+
-     &     (ZEI-ZE(J))*(ZEI-ZE(J))
-      SRE2=(REI+RE(J))*(REI+RE(J))
-      IF(DIJ2.GT.SRE2) GO TO 500
-      IIJ=IIJ+1
-      IJE(IIJ)=J
-      NEJCI=IIJ
-      DO 510 K=1,122
-      IF(IDF(K).EQ.0) GO TO 510
-      XK=CV(K,1)*REI
-      YK=CV(K,2)*REI
-      ZK=CV(K,3)*REI
-      XK0=XK+XEI
-      YK0=YK+YEI
-      ZK0=ZK+ZEI
-      DVK2=(XK0-XE(J))*(XK0-XE(J))+
-     &     (YK0-YE(J))*(YK0-YE(J))+
-     &     (ZK0-ZE(J))*(ZK0-ZE(J))
-      REJ2=RE(J)*RE(J)
-      IF(DVK2.LT.REJ2) IDF(K)=0
-  510 CONTINUE
-  500 CONTINUE
-C     IF(IPRINT.EQ.2) THEN
-C      WRITE(16,7230)(IJE(K),K=1,NEJCI),NEJCI
-C      WRITE(16,7230)(IDF(K),K=1,122)
-C     END IF
-C     WRITE(16,75)
- 7230 FORMAT(1X,15I4)
- 7231 CONTINUE
-      DDCEO=XEI*XEI+YEI*YEI+ZEI*ZEI
-      AST1=SRE(I)/60.0D0
-      AST2=AST1/4.0D0
-      AST3=AST2/4.0D0
-      AST4=AST3/4.0D0
-      AST5=AST4/4.0D0
-C*****PRIMERA DIVISION****************************
-      DO 2 J=1,60
-      ATJ=0.0D0
-      ASP(J)=0.0D0
-      CXCM=0.0D0
-      CYCM=0.0D0
-      CZCM=0.0D0
-      CMM=0.0D0
-      IF(NDIV.EQ.1) GO TO 3
-      NV1=JVT1(1,J)
-      NV2=JVT1(2,J)
-      NV3=JVT1(3,J)
-      NV4=JVT1(4,J)
-      NV5=JVT1(5,J)
-      NV6=JVT1(6,J)
-      IS1=IDF(NV1)+IDF(NV2)+IDF(NV3)+IDF(NV4)+IDF(NV5)+IDF(NV6)
-      IF(IS1.EQ.6) GO TO 3
-      IF(IS1.EQ.0) GO TO 33
-      NV(1)=NV1
-      NV(2)=NV2
-      NV(3)=NV3
-      NV(4)=NV4
-      NV(5)=NV5
-      NV(6)=NV6
-      GO TO 11
-    3 CXCM=REI*XC(J)
-      CYCM=REI*YC(J)
-      CZCM=REI*ZC(J)
-      CXCM0= CXCM+XEI
-      CYCM0=CYCM+YEI
-      CZCM0=CZCM+ZEI
-      IF(NDIV.NE.1) GO TO 34
-      DO 35 N3=1,NEJCI
-      N4=IJE(N3)
-      DD=(CXCM0-XE(N4))**2+
+         DO 280 J=1,NESF
+            IF(I.EQ.J) GO TO 280
+            DIJ2=(XEI-XE(J))*(XEI-XE(J))+
+     1     (YEI-YE(J))*(YEI-YE(J))+
+     2     (ZEI-ZE(J))*(ZEI-ZE(J))
+            SRE2=(REI+RE(J))*(REI+RE(J))
+            IF(DIJ2.GT.SRE2) GO TO 280
+            IIJ=IIJ+1
+            IJE(IIJ)=J
+            NEJCI=IIJ
+            DO 270 K=1,122
+               IF(IDF(K).EQ.0) GO TO 270
+               XK=CV(K,1)*REI
+               YK=CV(K,2)*REI
+               ZK=CV(K,3)*REI
+               XK0=XK+XEI
+               YK0=YK+YEI
+               ZK0=ZK+ZEI
+               DVK2=(XK0-XE(J))*(XK0-XE(J))+
+     1     (YK0-YE(J))*(YK0-YE(J))+
+     2     (ZK0-ZE(J))*(ZK0-ZE(J))
+               REJ2=RE(J)*RE(J)
+               IF(DVK2.LT.REJ2) IDF(K)=0
+  270       CONTINUE
+  280    CONTINUE
+  290    FORMAT(1X,15I4)
+  300    CONTINUE
+         DDCEO=XEI*XEI+YEI*YEI+ZEI*ZEI
+         AST1=SRE(I)/60.0D0
+         AST2=AST1/4.0D0
+         AST3=AST2/4.0D0
+         AST4=AST3/4.0D0
+         AST5=AST4/4.0D0
+C*****FIRST DIVISION****************************
+         DO 660 J=1,60
+            ATJ=0.0D0
+            ASP(J)=0.0D0
+            CXCM=0.0D0
+            CYCM=0.0D0
+            CZCM=0.0D0
+            CMM=0.0D0
+            IF(NDIV.EQ.1) GO TO 310
+            NV1=JVT1(1,J)
+            NV2=JVT1(2,J)
+            NV3=JVT1(3,J)
+            NV4=JVT1(4,J)
+            NV5=JVT1(5,J)
+            NV6=JVT1(6,J)
+            IS1=IDF(NV1)+IDF(NV2)+IDF(NV3)+IDF(NV4)+IDF(NV5)+IDF(NV6)
+            IF(IS1.EQ.6) GO TO 310
+            IF(IS1.EQ.0) GO TO 650
+            NV(1)=NV1
+            NV(2)=NV2
+            NV(3)=NV3
+            NV(4)=NV4
+            NV(5)=NV5
+            NV(6)=NV6
+            GO TO 350
+  310       CXCM=REI*XC(J)
+            CYCM=REI*YC(J)
+            CZCM=REI*ZC(J)
+            CXCM0= CXCM+XEI
+            CYCM0=CYCM+YEI
+            CZCM0=CZCM+ZEI
+            IF(NDIV.NE.1) GO TO 330
+            DO 320 N3=1,NEJCI
+               N4=IJE(N3)
+               DD=(CXCM0-XE(N4))**2+
      1   (CYCM0-YE(N4))**2+
      2   (CZCM0-ZE(N4))**2
-      RREJ=RE(N4)*RE(N4)
-      IF(DD.LT.RREJ) GO TO 33
-   35 CONTINUE
-   34 ATJ=AST1
-C     WRITE(16,8300)J,ATJ
-8300  FORMAT(' J',I4,'     ATJ',F10.5)
-      DD=CXCM0*CXCM0+CYCM0*CYCM0+CZCM0*CZCM0
-      VOL=VOL+AST1*(REI*REI+DD-DDCEO)/(6.0D0*REI)
-      GO TO 32
-C*****NIVEL 2**********************
-   11 DO 4 J2=1,4
-      NV21=NV(JVT2(1,J2))
-      NV22=NV(JVT2(2,J2))
-      NV23=NV(JVT2(3,J2))
-      IS2=IDF(NV21)+IDF(NV22)+IDF(NV23)
-      IF(IS2.EQ.0) GO TO 4
-      XVV1=CV(NV21,1)*REI
-      YVV1=CV(NV21,2)*REI
-      ZVV1=CV(NV21,3)*REI
-      XV2=CV(NV22,1)*REI
-      YV2=CV(NV22,2)*REI
-      ZV2=CV(NV22,3)*REI
-      XV3=CV(NV23,1)*REI
-      YV3=CV(NV23,2)*REI
-      ZV3=CV(NV23,3)*REI
-      III=0
-      IF(IS2.EQ.3) GO TO 12
-      IF(NDIV.LE.2) GO TO 6
-      CVN3(1,1)=XVV1
-      CVN3(1,2)=YVV1
-      CVN3(1,3)=ZVV1
-      CVN3(2,1)=XV2
-      CVN3(2,2)=YV2
-      CVN3(2,3)=ZV2
-      CVN3(3,1)=XV3
-      CVN3(3,2)=YV3
-      CVN3(3,3)=ZV3
-      IDF3(1)=IDF(NV21)
-      IDF3(2)=IDF(NV22)
-      IDF3(3)=IDF(NV23)
-      DO 7 NNN=1,3
-      N2=NNN+3
-      N1=NNN-1
-      IF(NNN.EQ.1)N1=3
-      XXX=(CVN3(NNN,1)+CVN3(N1,1))/2.0D0
-      YYY=(CVN3(NNN,2)+CVN3(N1,2))/2.0D0
-      ZZZ=(CVN3(NNN,3)+CVN3(N1,3))/2.0D0
-      RRR=DSQRT(XXX*XXX+YYY*YYY+ZZZ*ZZZ)
-      FC=REI/RRR
-      CVN3(N2,1)=XXX*FC
-      CVN3(N2,2)=YYY*FC
-      CVN3(N2,3)=ZZZ*FC
-      XXM=CVN3(N2,1)+XEI
-      YYM=CVN3(N2,2)+YEI
-      ZZM=CVN3(N2,3)+ZEI
-      IDF3(N2)=1
-      DO 8 N3=1,NEJCI
-      N4=IJE(N3)
-      DD=(XXM-XE(N4))*(XXM-XE(N4))+
-     &   (YYM-YE(N4))*(YYM-YE(N4))+
-     &   (ZZM-ZE(N4))*(ZZM-ZE(N4))
-      RREJ=RE(N4)*RE(N4)
-      IF(DD.GT.RREJ) GO TO 8
-      IDF3(N2)=0
-      GO TO 7
-    8 CONTINUE
-    7 CONTINUE
-      GO TO 9
-   12 III=1
-    6 XXX=(XVV1+XV2+XV3)/3.0D0
-      YYY=(YVV1+YV2+YV3)/3.0D0
-      ZZZ=(ZVV1+ZV2+ZV3)/3.0D0
-      RRR=DSQRT(XXX*XXX+YYY*YYY+ZZZ*ZZZ)
-      FC=REI/RRR
-      XCT=XXX*FC
-      YCT=YYY*FC
-      ZCT=ZZZ*FC
-      XCTM=XCT+XEI
-      YCTM=YCT+YEI
-      ZCTM=ZCT+ZEI
-      IF(III.EQ.1) GO TO 5
-      DO 10 NNN=1,NEJCI
-      N4=IJE(NNN)
-      DD=(XCTM-XE(N4))*(XCTM-XE(N4))+
-     &   (YCTM-YE(N4))*(YCTM-YE(N4))+
-     &   (ZCTM-ZE(N4))*(ZCTM-ZE(N4))
-      RREJ=RE(N4)*RE(N4)
-      IF(DD.LT.RREJ) GO TO 4
-   10 CONTINUE
-    5 DD=XCTM*XCTM+YCTM*YCTM+ZCTM*ZCTM
-      VOL=VOL+AST2*(REI*REI+DD-DDCEO)/(6.D0*REI)
-      ATJ=ATJ+AST2
-      CXCM=CXCM+XCT*FM(1)
-      CYCM=CYCM+YCT*FM(1)
-      CZCM=CZCM+ZCT*FM(1)
-      CMM=CMM+FM(1)
-      GO TO 4
-C*****NIVEL 3**********************************
-    9 DO 13 J3=1,4
-      NV31=JVT2(1,J3)
-      NV32=JVT2(2,J3)
-      NV33=JVT2(3,J3)
-      IS3=IDF3(NV31)+IDF3(NV32)+IDF3(NV33)
-      IF(IS3.EQ.0) GO TO 13
-      III=0
-      CVN4(1,1)=CVN3(NV31,1)
-      CVN4(1,2)=CVN3(NV31,2)
-      CVN4(1,3)=CVN3(NV31,3)
-      CVN4(2,1)=CVN3(NV32,1)
-      CVN4(2,2)=CVN3(NV32,2)
-      CVN4(2,3)=CVN3(NV32,3)
-      CVN4(3,1)=CVN3(NV33,1)
-      CVN4(3,2)=CVN3(NV33,2)
-      CVN4(3,3)=CVN3(NV33,3)
-      IF(IS3.EQ.3) GO TO 14
-      IF(NDIV.EQ.3) GO TO 15
-      IDF4(1)=IDF3(NV31)
-      IDF4(2)=IDF3(NV32)
-      IDF4(3)=IDF3(NV33)
-      DO 18 NNN=1,3
-      N2=NNN+3
-      N1=NNN-1
-      IF(NNN.EQ.1) N1=3
-      XXX=(CVN4(NNN,1)+CVN4(N1,1))/2.D0
-      YYY=(CVN4(NNN,2)+CVN4(N1,2))/2.D0
-      ZZZ=(CVN4(NNN,3)+CVN4(N1,3))/2.D0
-      RRR=DSQRT(XXX*XXX+YYY*YYY+ZZZ*ZZZ)
-      FC=REI/RRR
-      CVN4(N2,1)=XXX*FC
-      CVN4(N2,2)=YYY*FC
-      CVN4(N2,3)=ZZZ*FC
-      XXM=CVN4(N2,1)+XEI
-      YYM=CVN4(N2,2)+YEI
-      ZZM=CVN4(N2,3)+ZEI
-      IDF4(N2)=1
-      DO 19 N3=1,NEJCI
-      N4=IJE(N3)
-      DD=(XXM-XE(N4))*(XXM-XE(N4))+
-     &   (YYM-YE(N4))*(YYM-YE(N4))+
-     &   (ZZM-ZE(N4))*(ZZM-ZE(N4))
-      RREJ=RE(N4)*RE(N4)
-      IF(DD.GT.RREJ) GO TO 19
-      IDF4(N2)=0
-      GO TO 18
-   19 CONTINUE
-   18 CONTINUE
-      GO TO 17
-   14 III=1
-   15 XXX=(CVN4(1,1)+CVN4(2,1)+CVN4(3,1))/3.D0
-      YYY=(CVN4(1,2)+CVN4(2,2)+CVN4(3,2))/3.D0
-      ZZZ=(CVN4(1,3)+CVN4(2,3)+CVN4(3,3))/3.D0
-      RRR=DSQRT(XXX*XXX+YYY*YYY+ZZZ*ZZZ)
-      FC=REI/RRR
-      XCT=XXX*FC
-      YCT=YYY*FC
-      ZCT=ZZZ*FC
-      XCTM=XCT+XEI
-      YCTM=YCT+YEI
-      ZCTM=ZCT+ZEI
-      IF(III.EQ.1) GO TO 16
-      DO 20 NNN=1,NEJCI
-      N4=IJE(NNN)
-      DD=(XCTM-XE(N4))*(XCTM-XE(N4))+
-     &   (YCTM-YE(N4))*(YCTM-YE(N4))+
-     &   (ZCTM-ZE(N4))*(ZCTM-ZE(N4))
-      RREJ=RE(N4)*RE(N4)
-      IF(DD.LT.RREJ) GO TO 13
-   20 CONTINUE
-   16 DD=XCTM*XCTM+YCTM*YCTM+ZCTM*ZCTM
-      VOL=VOL+AST3*(REI*REI+DD-DDCEO)/(6.D0*REI)
-      ATJ=ATJ+AST3
-      CXCM=CXCM+XCT*FM(2)
-      CYCM=CYCM+YCT*FM(2)
-      CZCM=CZCM+ZCT*FM(2)
-      CMM=CMM+FM(2)
-      GO TO 13
-C*****NIVEL 4******************************
-   17 DO 21 J4=1,4
-      NV41=JVT2(1,J4)
-      NV42=JVT2(2,J4)
-      NV43=JVT2(3,J4)
-      IS4=IDF4(NV41)+IDF4(NV42)+IDF4(NV43)
-      IF(IS4.EQ.0) GO TO 21
-      III=0
-      CVN5(1,1)=CVN4(NV41,1)
-      CVN5(1,2)=CVN4(NV41,2)
-      CVN5(1,3)=CVN4(NV41,3)
-      CVN5(2,1)=CVN4(NV42,1)
-      CVN5(2,2)=CVN4(NV42,2)
-      CVN5(2,3)=CVN4(NV42,3)
-      CVN5(3,1)=CVN4(NV43,1)
-      CVN5(3,2)=CVN4(NV43,2)
-      CVN5(3,3)=CVN4(NV43,3)
-      IF(IS4.EQ.3)GOTO 44
-      IF(NDIV.EQ.4) GO TO 23
-      IDF5(1)=IDF4(NV41)
-      IDF5(2)=IDF4(NV42)
-      IDF5(3)=IDF4(NV43)
-      DO 2626 NNN=1,3
-      N2=NNN+3
-      N1=NNN-1
-      IF(NNN.EQ.1) N1=3
-      XXX=(CVN5(NNN,1)+CVN5(N1,1))/2.D0
-      YYY=(CVN5(NNN,2)+CVN5(N1,2))/2.D0
-      ZZZ=(CVN5(NNN,3)+CVN5(N1,3))/2.D0
-      RRR=DSQRT(XXX*XXX+YYY*YYY+ZZZ*ZZZ)
-      FC=REI/RRR
-      CVN5(N2,1)=XXX*FC
-      CVN5(N2,2)=YYY*FC
-      CVN5(N2,3)=ZZZ*FC
-      XXM=CVN5(N2,1)+XEI
-      YYM=CVN5(N2,2)+YEI
-      ZZM=CVN5(N2,3)+ZEI
-      IDF5(N2)=1
-      DO 2727 N3=1,NEJCI
-      N4=IJE(N3)
-      DD=(XXM-XE(N4))*(XXM-XE(N4))+
-     &   (YYM-YE(N4))*(YYM-YE(N4))+
-     &   (ZZM-ZE(N4))*(ZZM-ZE(N4))
-      RREJ=RE(N4)*RE(N4)
-      IF(DD.GT.RREJ) GO TO 2727
-      IDF5(N2)=0
-      GO TO 2626
- 2727 CONTINUE
- 2626 CONTINUE
-      GO TO 25
-   44 III=1
-   23 XXX=(CVN5(1,1)+CVN5(2,1)+CVN5(3,1))/3.D0
-      YYY=(CVN5(1,2)+CVN5(2,2)+CVN5(3,2))/3.D0
-      ZZZ=(CVN5(1,3)+CVN5(2,3)+CVN5(3,3))/3.D0
-      RRR=DSQRT(XXX*XXX+YYY*YYY+ZZZ*ZZZ)
-      FC=REI/RRR
-      XCT=XXX*FC
-      YCT=YYY*FC
-      ZCT=ZZZ*FC
-      XCTM=XCT+XEI
-      YCTM=YCT+YEI
-      ZCTM=ZCT+ZEI
-      IF(III.EQ.1) GO TO 24
-      DO 28 NNN=1,NEJCI
-      N4=IJE(NNN)
-      DD=(XCTM-XE(N4))*(XCTM-XE(N4))+
-     &   (YCTM-YE(N4))*(YCTM-YE(N4))+
-     &   (ZCTM-ZE(N4))*(ZCTM-ZE(N4))
-      RREJ=RE(N4)*RE(N4)
-      IF(DD.LT.RREJ) GO TO 21
-   28 CONTINUE
-   24 DD=XCTM*XCTM+YCTM*YCTM+ZCTM*ZCTM
-      VOL=VOL+AST4*(REI*REI+DD-DDCEO)/(6.D0*REI)
-      ATJ=ATJ+AST4
-      CXCM=CXCM+XCT*FM(3)
-      CYCM=CYCM+YCT*FM(3)
-      CZCM=CZCM+ZCT*FM(3)
-      CMM=CMM+FM(3)
-      GO TO 21
-C*****NIVEL 5*************************************
-   25 DO 29 J5=1,4
-      NV51=JVT2(1,J5)
-      NV52=JVT2(2,J5)
-      NV53=JVT2(3,J5)
-      IS5=IDF5(NV51)+IDF5(NV52)+IDF5(NV53)
-      IF(IS5.EQ.0) GO TO 29
-      XXX=(CVN5(NV51,1)+CVN5(NV52,1)+CVN5(NV53,1))/3.D0
-      YYY=(CVN5(NV51,2)+CVN5(NV52,2)+CVN5(NV53,2))/3.D0
-      ZZZ=(CVN5(NV51,3)+CVN5(NV52,3)+CVN5(NV53,3))/3.D0
-      RRR=DSQRT(XXX*XXX+YYY*YYY+ZZZ*ZZZ)
-      FC=REI/RRR
-      XCT=XXX*FC
-      YCT=YYY*FC
-      ZCT=ZZZ*FC
-      XCTM=XCT+XEI
-      YCTM=YCT+YEI
-      ZCTM=ZCT+ZEI
-      IF(IS5.EQ.3) GO TO  30
-      DO 31 NNN=1,NEJCI
-      N4=IJE(NNN)
-      DD=(XCTM-XE(N4))*(XCTM-XE(N4))+
-     &   (YCTM-YE(N4))*(YCTM-YE(N4))+
-     &   (ZCTM-ZE(N4))*(ZCTM-ZE(N4))
-      RREJ=RE(N4)*RE(N4)
-      IF(DD.LT.RREJ) GO TO  29
-   31 CONTINUE
-   30 DD=XCTM*XCTM+YCTM*YCTM+ZCTM*ZCTM
-      VOL=VOL+AST5*(REI*REI+DD-DDCEO)/(6.D0*REI)
-      ATJ=ATJ+AST5
-      CXCM=CXCM+XCT*FM(4)
-      CYCM=CYCM+YCT*FM(4)
-      CZCM=CZCM+ZCT*FM(4)
-      CMM=CMM+FM(4)
-   29 CONTINUE
-   21 CONTINUE
-   13 CONTINUE
-    4 CONTINUE
-      IF(CMM.LE.0.0001) GO TO 33
-      CXCM=CXCM/CMM
-      CYCM=CYCM/CMM
-      CZCM=CZCM/CMM
-      RRR=DSQRT(CXCM*CXCM+CYCM*CYCM+CZCM*CZCM)
-      FC=REI/RRR
-      CXCM=CXCM*FC
-      CYCM=CYCM*FC
-      CZCM=CZCM*FC
-      CXCM0=CXCM+XEI
-      CYCM0=CYCM+YEI
-      CZCM0=CZCM+ZEI
+               RREJ=RE(N4)*RE(N4)
+               IF(DD.LT.RREJ) GO TO 650
+  320       CONTINUE
+  330       ATJ=AST1
+  340       FORMAT(' J',I4,'     ATJ',F10.5)
+            DD=CXCM0*CXCM0+CYCM0*CYCM0+CZCM0*CZCM0
+            VOL=VOL+AST1*(REI*REI+DD-DDCEO)/(6.0D0*REI)
+            GO TO 630
+C*****SECOND DIVISION**********************
+  350       DO 620 J2=1,4
+               NV21=NV(JVT2(1,J2))
+               NV22=NV(JVT2(2,J2))
+               NV23=NV(JVT2(3,J2))
+               IS2=IDF(NV21)+IDF(NV22)+IDF(NV23)
+               IF(IS2.EQ.0) GO TO 620
+               XVV1=CV(NV21,1)*REI
+               YVV1=CV(NV21,2)*REI
+               ZVV1=CV(NV21,3)*REI
+               XV2=CV(NV22,1)*REI
+               YV2=CV(NV22,2)*REI
+               ZV2=CV(NV22,3)*REI
+               XV3=CV(NV23,1)*REI
+               YV3=CV(NV23,2)*REI
+               ZV3=CV(NV23,3)*REI
+               III=0
+               IF(IS2.EQ.3) GO TO 380
+               IF(NDIV.LE.2) GO TO 390
+               CVN3(1,1)=XVV1
+               CVN3(1,2)=YVV1
+               CVN3(1,3)=ZVV1
+               CVN3(2,1)=XV2
+               CVN3(2,2)=YV2
+               CVN3(2,3)=ZV2
+               CVN3(3,1)=XV3
+               CVN3(3,2)=YV3
+               CVN3(3,3)=ZV3
+               IDF3(1)=IDF(NV21)
+               IDF3(2)=IDF(NV22)
+               IDF3(3)=IDF(NV23)
+               DO 370 NNN=1,3
+                  N2=NNN+3
+                  N1=NNN-1
+                  IF(NNN.EQ.1)N1=3
+                  XXX=(CVN3(NNN,1)+CVN3(N1,1))/2.0D0
+                  YYY=(CVN3(NNN,2)+CVN3(N1,2))/2.0D0
+                  ZZZ=(CVN3(NNN,3)+CVN3(N1,3))/2.0D0
+                  RRR=DSQRT(XXX*XXX+YYY*YYY+ZZZ*ZZZ)
+                  FC=REI/RRR
+                  CVN3(N2,1)=XXX*FC
+                  CVN3(N2,2)=YYY*FC
+                  CVN3(N2,3)=ZZZ*FC
+                  XXM=CVN3(N2,1)+XEI
+                  YYM=CVN3(N2,2)+YEI
+                  ZZM=CVN3(N2,3)+ZEI
+                  IDF3(N2)=1
+                  DO 360 N3=1,NEJCI
+                     N4=IJE(N3)
+                     DD=(XXM-XE(N4))*(XXM-XE(N4))+
+     1   (YYM-YE(N4))*(YYM-YE(N4))+
+     2   (ZZM-ZE(N4))*(ZZM-ZE(N4))
+                     RREJ=RE(N4)*RE(N4)
+                     IF(DD.GT.RREJ) GO TO 360
+                     IDF3(N2)=0
+                     GO TO 370
+  360             CONTINUE
+  370          CONTINUE
+               GO TO 420
+  380          III=1
+  390          XXX=(XVV1+XV2+XV3)/3.0D0
+               YYY=(YVV1+YV2+YV3)/3.0D0
+               ZZZ=(ZVV1+ZV2+ZV3)/3.0D0
+               RRR=DSQRT(XXX*XXX+YYY*YYY+ZZZ*ZZZ)
+               FC=REI/RRR
+               XCT=XXX*FC
+               YCT=YYY*FC
+               ZCT=ZZZ*FC
+               XCTM=XCT+XEI
+               YCTM=YCT+YEI
+               ZCTM=ZCT+ZEI
+               IF(III.EQ.1) GO TO 410
+               DO 400 NNN=1,NEJCI
+                  N4=IJE(NNN)
+                  DD=(XCTM-XE(N4))*(XCTM-XE(N4))+
+     1   (YCTM-YE(N4))*(YCTM-YE(N4))+
+     2   (ZCTM-ZE(N4))*(ZCTM-ZE(N4))
+                  RREJ=RE(N4)*RE(N4)
+                  IF(DD.LT.RREJ) GO TO 620
+  400          CONTINUE
+  410          DD=XCTM*XCTM+YCTM*YCTM+ZCTM*ZCTM
+               VOL=VOL+AST2*(REI*REI+DD-DDCEO)/(6.D0*REI)
+               ATJ=ATJ+AST2
+               CXCM=CXCM+XCT*FM(1)
+               CYCM=CYCM+YCT*FM(1)
+               CZCM=CZCM+ZCT*FM(1)
+               CMM=CMM+FM(1)
+               GO TO 620
+C*****  THIRD DIVISION **********************************
+  420          DO 610 J3=1,4
+                  NV31=JVT2(1,J3)
+                  NV32=JVT2(2,J3)
+                  NV33=JVT2(3,J3)
+                  IS3=IDF3(NV31)+IDF3(NV32)+IDF3(NV33)
+                  IF(IS3.EQ.0) GO TO 610
+                  III=0
+                  CVN4(1,1)=CVN3(NV31,1)
+                  CVN4(1,2)=CVN3(NV31,2)
+                  CVN4(1,3)=CVN3(NV31,3)
+                  CVN4(2,1)=CVN3(NV32,1)
+                  CVN4(2,2)=CVN3(NV32,2)
+                  CVN4(2,3)=CVN3(NV32,3)
+                  CVN4(3,1)=CVN3(NV33,1)
+                  CVN4(3,2)=CVN3(NV33,2)
+                  CVN4(3,3)=CVN3(NV33,3)
+                  IF(IS3.EQ.3) GO TO 450
+                  IF(NDIV.EQ.3) GO TO 460
+                  IDF4(1)=IDF3(NV31)
+                  IDF4(2)=IDF3(NV32)
+                  IDF4(3)=IDF3(NV33)
+                  DO 440 NNN=1,3
+                     N2=NNN+3
+                     N1=NNN-1
+                     IF(NNN.EQ.1) N1=3
+                     XXX=(CVN4(NNN,1)+CVN4(N1,1))/2.D0
+                     YYY=(CVN4(NNN,2)+CVN4(N1,2))/2.D0
+                     ZZZ=(CVN4(NNN,3)+CVN4(N1,3))/2.D0
+                     RRR=DSQRT(XXX*XXX+YYY*YYY+ZZZ*ZZZ)
+                     FC=REI/RRR
+                     CVN4(N2,1)=XXX*FC
+                     CVN4(N2,2)=YYY*FC
+                     CVN4(N2,3)=ZZZ*FC
+                     XXM=CVN4(N2,1)+XEI
+                     YYM=CVN4(N2,2)+YEI
+                     ZZM=CVN4(N2,3)+ZEI
+                     IDF4(N2)=1
+                     DO 430 N3=1,NEJCI
+                        N4=IJE(N3)
+                        DD=(XXM-XE(N4))*(XXM-XE(N4))+
+     1   (YYM-YE(N4))*(YYM-YE(N4))+
+     2   (ZZM-ZE(N4))*(ZZM-ZE(N4))
+                        RREJ=RE(N4)*RE(N4)
+                        IF(DD.GT.RREJ) GO TO 430
+                        IDF4(N2)=0
+                        GO TO 440
+  430                CONTINUE
+  440             CONTINUE
+                  GO TO 490
+  450             III=1
+  460             XXX=(CVN4(1,1)+CVN4(2,1)+CVN4(3,1))/3.D0
+                  YYY=(CVN4(1,2)+CVN4(2,2)+CVN4(3,2))/3.D0
+                  ZZZ=(CVN4(1,3)+CVN4(2,3)+CVN4(3,3))/3.D0
+                  RRR=DSQRT(XXX*XXX+YYY*YYY+ZZZ*ZZZ)
+                  FC=REI/RRR
+                  XCT=XXX*FC
+                  YCT=YYY*FC
+                  ZCT=ZZZ*FC
+                  XCTM=XCT+XEI
+                  YCTM=YCT+YEI
+                  ZCTM=ZCT+ZEI
+                  IF(III.EQ.1) GO TO 480
+                  DO 470 NNN=1,NEJCI
+                     N4=IJE(NNN)
+                     DD=(XCTM-XE(N4))*(XCTM-XE(N4))+
+     1   (YCTM-YE(N4))*(YCTM-YE(N4))+
+     2   (ZCTM-ZE(N4))*(ZCTM-ZE(N4))
+                     RREJ=RE(N4)*RE(N4)
+                     IF(DD.LT.RREJ) GO TO 610
+  470             CONTINUE
+  480             DD=XCTM*XCTM+YCTM*YCTM+ZCTM*ZCTM
+                  VOL=VOL+AST3*(REI*REI+DD-DDCEO)/(6.D0*REI)
+                  ATJ=ATJ+AST3
+                  CXCM=CXCM+XCT*FM(2)
+                  CYCM=CYCM+YCT*FM(2)
+                  CZCM=CZCM+ZCT*FM(2)
+                  CMM=CMM+FM(2)
+                  GO TO 610
+C*****  FOURTH DIVISION ******************************
+  490             DO 600 J4=1,4
+                     NV41=JVT2(1,J4)
+                     NV42=JVT2(2,J4)
+                     NV43=JVT2(3,J4)
+                     IS4=IDF4(NV41)+IDF4(NV42)+IDF4(NV43)
+                     IF(IS4.EQ.0) GO TO 600
+                     III=0
+                     CVN5(1,1)=CVN4(NV41,1)
+                     CVN5(1,2)=CVN4(NV41,2)
+                     CVN5(1,3)=CVN4(NV41,3)
+                     CVN5(2,1)=CVN4(NV42,1)
+                     CVN5(2,2)=CVN4(NV42,2)
+                     CVN5(2,3)=CVN4(NV42,3)
+                     CVN5(3,1)=CVN4(NV43,1)
+                     CVN5(3,2)=CVN4(NV43,2)
+                     CVN5(3,3)=CVN4(NV43,3)
+                     IF(IS4.EQ.3)GOTO 520
+                     IF(NDIV.EQ.4) GO TO 530
+                     IDF5(1)=IDF4(NV41)
+                     IDF5(2)=IDF4(NV42)
+                     IDF5(3)=IDF4(NV43)
+                     DO 510 NNN=1,3
+                        N2=NNN+3
+                        N1=NNN-1
+                        IF(NNN.EQ.1) N1=3
+                        XXX=(CVN5(NNN,1)+CVN5(N1,1))/2.D0
+                        YYY=(CVN5(NNN,2)+CVN5(N1,2))/2.D0
+                        ZZZ=(CVN5(NNN,3)+CVN5(N1,3))/2.D0
+                        RRR=DSQRT(XXX*XXX+YYY*YYY+ZZZ*ZZZ)
+                        FC=REI/RRR
+                        CVN5(N2,1)=XXX*FC
+                        CVN5(N2,2)=YYY*FC
+                        CVN5(N2,3)=ZZZ*FC
+                        XXM=CVN5(N2,1)+XEI
+                        YYM=CVN5(N2,2)+YEI
+                        ZZM=CVN5(N2,3)+ZEI
+                        IDF5(N2)=1
+                        DO 500 N3=1,NEJCI
+                           N4=IJE(N3)
+                           DD=(XXM-XE(N4))*(XXM-XE(N4))+
+     1   (YYM-YE(N4))*(YYM-YE(N4))+
+     2   (ZZM-ZE(N4))*(ZZM-ZE(N4))
+                           RREJ=RE(N4)*RE(N4)
+                           IF(DD.GT.RREJ) GO TO 500
+                           IDF5(N2)=0
+                           GO TO 510
+  500                   CONTINUE
+  510                CONTINUE
+                     GO TO 560
+  520                III=1
+  530                XXX=(CVN5(1,1)+CVN5(2,1)+CVN5(3,1))/3.D0
+                     YYY=(CVN5(1,2)+CVN5(2,2)+CVN5(3,2))/3.D0
+                     ZZZ=(CVN5(1,3)+CVN5(2,3)+CVN5(3,3))/3.D0
+                     RRR=DSQRT(XXX*XXX+YYY*YYY+ZZZ*ZZZ)
+                     FC=REI/RRR
+                     XCT=XXX*FC
+                     YCT=YYY*FC
+                     ZCT=ZZZ*FC
+                     XCTM=XCT+XEI
+                     YCTM=YCT+YEI
+                     ZCTM=ZCT+ZEI
+                     IF(III.EQ.1) GO TO 550
+                     DO 540 NNN=1,NEJCI
+                        N4=IJE(NNN)
+                        DD=(XCTM-XE(N4))*(XCTM-XE(N4))+
+     1   (YCTM-YE(N4))*(YCTM-YE(N4))+
+     2   (ZCTM-ZE(N4))*(ZCTM-ZE(N4))
+                        RREJ=RE(N4)*RE(N4)
+                        IF(DD.LT.RREJ) GO TO 600
+  540                CONTINUE
+  550                DD=XCTM*XCTM+YCTM*YCTM+ZCTM*ZCTM
+                     VOL=VOL+AST4*(REI*REI+DD-DDCEO)/(6.D0*REI)
+                     ATJ=ATJ+AST4
+                     CXCM=CXCM+XCT*FM(3)
+                     CYCM=CYCM+YCT*FM(3)
+                     CZCM=CZCM+ZCT*FM(3)
+                     CMM=CMM+FM(3)
+                     GO TO 600
+C*****  FIFTH DIVISION  *************************************
+  560                DO 590 J5=1,4
+                        NV51=JVT2(1,J5)
+                        NV52=JVT2(2,J5)
+                        NV53=JVT2(3,J5)
+                        IS5=IDF5(NV51)+IDF5(NV52)+IDF5(NV53)
+                        IF(IS5.EQ.0) GO TO 590
+                        XXX=(CVN5(NV51,1)+CVN5(NV52,1)+CVN5(NV53,1))/3.D
+     10
+                        YYY=(CVN5(NV51,2)+CVN5(NV52,2)+CVN5(NV53,2))/3.D
+     10
+                        ZZZ=(CVN5(NV51,3)+CVN5(NV52,3)+CVN5(NV53,3))/3.D
+     10
+                        RRR=DSQRT(XXX*XXX+YYY*YYY+ZZZ*ZZZ)
+                        FC=REI/RRR
+                        XCT=XXX*FC
+                        YCT=YYY*FC
+                        ZCT=ZZZ*FC
+                        XCTM=XCT+XEI
+                        YCTM=YCT+YEI
+                        ZCTM=ZCT+ZEI
+                        IF(IS5.EQ.3) GO TO  580
+                        DO 570 NNN=1,NEJCI
+                           N4=IJE(NNN)
+                           DD=(XCTM-XE(N4))*(XCTM-XE(N4))+
+     1   (YCTM-YE(N4))*(YCTM-YE(N4))+
+     2   (ZCTM-ZE(N4))*(ZCTM-ZE(N4))
+                           RREJ=RE(N4)*RE(N4)
+                           IF(DD.LT.RREJ) GO TO  590
+  570                   CONTINUE
+  580                   DD=XCTM*XCTM+YCTM*YCTM+ZCTM*ZCTM
+                        VOL=VOL+AST5*(REI*REI+DD-DDCEO)/(6.D0*REI)
+                        ATJ=ATJ+AST5
+                        CXCM=CXCM+XCT*FM(4)
+                        CYCM=CYCM+YCT*FM(4)
+                        CZCM=CZCM+ZCT*FM(4)
+                        CMM=CMM+FM(4)
+  590                CONTINUE
+  600             CONTINUE
+  610          CONTINUE
+  620       CONTINUE
+            IF(CMM.LE.0.0001) GO TO 650
+            CXCM=CXCM/CMM
+            CYCM=CYCM/CMM
+            CZCM=CZCM/CMM
+            RRR=DSQRT(CXCM*CXCM+CYCM*CYCM+CZCM*CZCM)
+            FC=REI/RRR
+            CXCM=CXCM*FC
+            CYCM=CYCM*FC
+            CZCM=CZCM*FC
+            CXCM0=CXCM+XEI
+            CYCM0=CYCM+YEI
+            CZCM0=CZCM+ZEI
 C2224      XXEV=CXCM0
 C          YYEV=CYCM0
 C          ZZEV=CZCM0
 C          CALL TRANSF(XXEV,YYEV,ZZEV,OVV)
 C          IF(ZZEV.GT.0.D0.AND.IMEZ.EQ.1)GO TO 33
 C          IF(ZZEV.LE.0.D0.AND.IMEZ.EQ.2)GO TO 33
-   32 IJ=IJ+1
+  630       IJ=IJ+1
 C          ISOLV(IJ)=IMEZ
-      X0(IJ)=CXCM0
-      Y0(IJ)=CYCM0
-      Z0(IJ)=CZCM0
-C     WRITE(16,8400)IJ,CXCM0,CYCM0,CZCM0
-8400  FORMAT('  IJ',I4,'    X',F10.5,'    Y',F10.5,'    Z',F10.5)
-      FDR=REIM/REI
-      XV1IJ=CXCM*FDR+XEI
-      YV1IJ=CYCM*FDR+YEI
-      ZV1IJ=CZCM*FDR+ZEI
-      XV1(IJ)=XV1IJ
-      YV1(IJ)=YV1IJ
-      ZV1(IJ)=ZV1IJ
-      RV1(IJ)=REI
-      ASP(J)=ATJ
-      AS(IJ)=ASP(J)
-      SSFE(I)=SSFE(I)+ATJ
-      IPLOCH(IJ)=I
+            X0(IJ)=CXCM0
+            Y0(IJ)=CYCM0
+            Z0(IJ)=CZCM0
+  640       FORMAT('  IJ',I4,'    X',F10.5,'    Y',F10.5,'    Z',F10.5)
+            FDR=REIM/REI
+            XV1IJ=CXCM*FDR+XEI
+            YV1IJ=CYCM*FDR+YEI
+            ZV1IJ=CZCM*FDR+ZEI
+            XV1(IJ)=XV1IJ
+            YV1(IJ)=YV1IJ
+            ZV1(IJ)=ZV1IJ
+            RV1(IJ)=REI
+            ASP(J)=ATJ
+            AS(IJ)=ASP(J)
+            SSFE(I)=SSFE(I)+ATJ
+            IPLOCH(IJ)=I
 C ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-      GO TO 2
-   33 JM(J)=0
-C     WRITE(16,8000)J
-    2 CONTINUE
-    1 CONTINUE
+            GO TO 660
+  650       JM(J)=0
+  660    CONTINUE
+  670 CONTINUE
 C*********************************************************************
-C     ELIMINACION DE LOS PUNTOS VECINOS
+C     ELIMINATE NEAREST POINTS
 C*********************************************************************
- 2223 KVAK0=0
+  680 KVAK0=0
       TEST=0.02D0
       TEST2=TEST*TEST
       IJM=IJ-1
-      DO 1022 I=1,IJM
-      IF(AS(I).EQ.ZERO)GO TO 1022
-      XI=X0(I)
-      YI=Y0(I)
-      ZI=Z0(I)
-      II=I+1
-      DO 1020 J=II,IJ
-      IF(IPLOCH(I).EQ.IPLOCH(J))GO TO 1020
-      IF(AS(J).EQ.ZERO)GO TO 1020
-      XJ=X0(J)
-      YJ=Y0(J)
-      ZJ=Z0(J)
-      RIJ=(XI-XJ)**2+(YI-YJ)**2+(ZI-ZJ)**2
-      IF(RIJ.GT.TEST2)GO TO 1020
-      KVAK0=KVAK0+1
-      AS(J)=ZERO
-      ASM=(AS(I)+AS(J))
-      XJ=(XI+X0(J))*UN2
-      YJ=(YI+Y0(J))*UN2
-      ZJ=(ZI+Z0(J))*UN2
-      XIJ=(XV1(I)+XV1(J))*UN2
-      YIJ=(YV1(I)+YV1(J))*UN2
-      ZIJ=(ZV1(I)+ZV1(J))*UN2
-      RIJ=DSQRT((XJ-XIJ)**2+(YJ-YIJ)**2+(ZJ-ZIJ)**2)
-      TAU1=DR/RIJ
-      TAU2=-TAU1
-      XV1(I)=(XIJ-XJ)*TAU1+XJ
-      YV1(I)=(YIJ-YJ)*TAU1+YJ
-      ZV1(I)=(ZIJ-ZJ)*TAU1+ZJ
-      X0(I)=XJ
-      Y0(I)=YJ
-      Z0(I)=ZJ
-      AS(I)=ASM
- 1020 CONTINUE
- 1022 CONTINUE
+      DO 700 I=1,IJM
+         IF(AS(I).EQ.0.D0)GO TO 700
+         XI=X0(I)
+         YI=Y0(I)
+         ZI=Z0(I)
+         II=I+1
+         DO 690 J=II,IJ
+            IF(IPLOCH(I).EQ.IPLOCH(J))GO TO 690
+            IF(AS(J).EQ.0.D0)GO TO 690
+            XJ=X0(J)
+            YJ=Y0(J)
+            ZJ=Z0(J)
+            RIJ=(XI-XJ)**2+(YI-YJ)**2+(ZI-ZJ)**2
+            IF(RIJ.GT.TEST2)GO TO 690
+            KVAK0=KVAK0+1
+            AS(J)=0.D0
+            ASM=(AS(I)+AS(J))
+            XJ=(XI+X0(J))*UN2
+            YJ=(YI+Y0(J))*UN2
+            ZJ=(ZI+Z0(J))*UN2
+            XIJ=(XV1(I)+XV1(J))*UN2
+            YIJ=(YV1(I)+YV1(J))*UN2
+            ZIJ=(ZV1(I)+ZV1(J))*UN2
+            RIJ=DSQRT((XJ-XIJ)**2+(YJ-YIJ)**2+(ZJ-ZIJ)**2)
+            TAU1=DR/RIJ
+            TAU2=-TAU1
+            XV1(I)=(XIJ-XJ)*TAU1+XJ
+            YV1(I)=(YIJ-YJ)*TAU1+YJ
+            ZV1(I)=(ZIJ-ZJ)*TAU1+ZJ
+            X0(I)=XJ
+            Y0(I)=YJ
+            Z0(I)=ZJ
+            AS(I)=ASM
+  690    CONTINUE
+  700 CONTINUE
       IIJ=IJ
       IJ=0
-      DO 1021 I=1,IIJ
-      IF(AS(I).EQ.ZERO)GO TO 1021
-      IJ=IJ+1
-      X0(IJ)=X0(I)
-      Y0(IJ)=Y0(I)
-      Z0(IJ)=Z0(I)
-      AS(IJ)=AS(I)
-      RV1(IJ)=RV1(I)
-      XV1(IJ)=XV1(I)
-      YV1(IJ)=YV1(I)
-      ZV1(IJ)=ZV1(I)
-      IPLOCH(IJ)=IPLOCH(I)
- 1021 CONTINUE
-8888  FORMAT(2I4,4F10.5)
+      DO 710 I=1,IIJ
+         IF(AS(I).EQ.0.D0)GO TO 710
+         IJ=IJ+1
+         X0(IJ)=X0(I)
+         Y0(IJ)=Y0(I)
+         Z0(IJ)=Z0(I)
+         AS(IJ)=AS(I)
+         RV1(IJ)=RV1(I)
+         XV1(IJ)=XV1(I)
+         YV1(IJ)=YV1(I)
+         ZV1(IJ)=ZV1(I)
+         IPLOCH(IJ)=IPLOCH(I)
+  710 CONTINUE
+  720 FORMAT(2I4,4F10.5)
       IIJ=IJ
       NTS=IJ
-      STOT=ZERO
-      DO 1025 I=1,NESF
- 1025 SSFE(I)=ZERO
-      DO 1024 I=1,NTS
-      K=IPLOCH(I)
- 1024 SSFE(K)=SSFE(K)+AS(I)
-      WRITE(6,900)NESF
-  900 FORMAT(//,'1    ****** MODELLO SOLVENTE PISA ******',//,
-     *       ' * CARATTERISTICHE DELLA CAVITA *',
-     * ////,'  NUMERO TOTALE DI SFERE',I5,//,'  CENTRI E RAGGI :',//,
-     *       '  SFERA    CENTRO  (X,Y,Z) (ANG.)     RAGGIO (ANG.)',
-     * '  AREA(ANG.*ANG.)')
+      STOT=0.D0
+      DO 730 I=1,NESF
+  730 SSFE(I)=0.D0
+      DO 740 I=1,NTS
+         K=IPLOCH(I)
+  740 SSFE(K)=SSFE(K)+AS(I)
+      WRITE(IW,750)NESF
+  750 FORMAT(//,'1    ****** PISA SOLVENT MODEL ******',//,             
+     *       ' * CHARACTERISTICS OF THE CAVITY *',                      
+     * ////,'  TOTAL NUMBER OF SPHERES',I5,//,' CENTER - RADIUS :',//,  
+     *       ' SPHERE    CENTER  (X,Y,Z) (ANG.)     RADIUS (ANG.)',     
+     * '  AREA(ANG.*ANG.)')                                             
       GVW=0.
-       DO 1026 I=1,NESF
-      WRITE(6,2820)I,XE(I),YE(I),ZE(I),RE(I),SSFE(I)
+      DO 760 I=1,NESF
+         WRITE(IW,40)I,XE(I),YE(I),ZE(I),RE(I),SSFE(I)
       IF (ICLASS(I).EQ.1) THEN
          GVW=GVW-0.0876*SSFE(I)
       ELSE IF (ICLASS(I).EQ.6) THEN
@@ -2174,130 +3298,55 @@ C*********************************************************************
       ELSE
          GVW=GVW-0.0767*SSFE(I)
       END IF
- 1026 STOT=STOT+SSFE(I)
-      WRITE(6,2830)OMEGA,RD,RET,FRO,NDIV
-2830  FORMAT(///,' PARAMETRI POLYEDRA: OMEGA=',F8.3,' RD=',F8.3,' RET='
-     *, F8.3,' FRO=',F8.3,' NDIV=',I5,//)
-      WRITE(6,4160)NTS,STOT,VOL
- 4160 FORMAT(' NUMERO TOTALE DI TESSERE ',I8,//,
-     *' SUPERFICE',F12.5,'(ANG.**2)     VOLUME ',F12.5,
-     *'(ANG.**3)',//)
-8900  FORMAT('  SFERA',I3,'   AREA',F10.5)
+  760 STOT=STOT+SSFE(I)
+      WRITE(IW,770)OMEGA,RD,RET,FRO,NDIV
+  770 FORMAT(///,' POLYHEDRON PARAMETER: OMEGA=',F8.3,' RD=',F8.3,
+     1' RET=', F8.3,' FRO=',F8.3,' NDIV=',I5,//)
+      WRITE(IW,780)NTS,STOT,VOL
+  780 FORMAT(' TOTAL NUMBER OF ELEMENTS ',I8,//,
+     1' SURFACE  ',F12.5,'(ANG.**2)     VOLUME ',F12.5,
+     2'(ANG.**3)',//)
+  790 FORMAT(' SPHERE',I3,'   AREA',F10.5)
 C     PATAS: COMPUTATION OF VAN DER WAALS TERM
 C     SEE F.M.FLORIS, J.TOMASI,J.L.PASCUAL AHUIR
 C         JOURNAL OF COMPUTATIONAL CHEMISTRY,12(1991)784-791
 C
       GVWS=-0.03208-0.0767*STOT
       GVWV=-1.26850-0.07469*VOL
-      WRITE(6,4343) GVW,GVWS,GVWV
-4343  FORMAT(' VAN DER WAALS OPTIMIZED LINEAR RELATION: ',F12.5,
+      WRITE(IW,800) GVW,GVWS,GVWV
+  800 FORMAT(' VAN DER WAALS OPTIMIZED LINEAR RELATION: ',F12.5,
      1' KCAL/MOL',
-     1/,' VAN DER WAALS FREE-ENERGY (SURFACE): ',F12.5,' KCAL/MOL',
-     1/,' VAN DER WAALS FREE-ENERGY (VOLUME):  ',F12.5,' KCAL/MOL',/)
+     2/,' VAN DER WAALS FREE-ENERGY (SURFACE): ',F12.5,' KCAL/MOL',
+     3/,' VAN DER WAALS FREE-ENERGY (VOLUME):  ',F12.5,' KCAL/MOL',/)
 C     PATAS: END OF MODIFICATION
 C     IF(IPRINT.EQ.1)THEN
-         WRITE(17,8910)
-         WRITE(17,8920)
+      WRITE(ISOL,810)
+      WRITE(ISOL,820)
 C     END IF
- 8910 FORMAT('1 *** SUDDIVISIONE DELLA SUPERFICIE  ***')
- 8920 FORMAT(' TESSERA  SFERA    AREA        COORDINATE CENTRO(X,Y,Z)',
-     *'         PUNTO SULLA NORMALE AL CENTRO(X,Y,Z)')
- 8930 FORMAT(2I7,7F10.5)
+  810 FORMAT('1 *** PARTITIONING OF THE SURFACE    ***')
+  820 FORMAT(' ELEMENT  SPHERE   AREA       CENTER COORDINATES(X,Y,Z)', 
+     *'         POINT NORMAL TO THE CENTER(X,Y,Z)')                    
+  830 FORMAT(2I7,7F10.5)
       OMEGA=OMEGA/FIRST
-      DO 222 I=1,NTS
+      DO 840 I=1,NTS
 C     IF(IPRINT.EQ.1)THEN
-      WRITE(17,8930)I,IPLOCH(I),AS(I),X0(I),Y0(I),Z0(I),XV1(I),
-     *YV1(I),ZV1(I)
+         WRITE(ISOL,830)I,IPLOCH(I),AS(I),X0(I),Y0(I),Z0(I),XV1(I),
+     1YV1(I),ZV1(I)
 C     END IF
-      K=I+NTS
-      AS(I)=AS(I)*ANTOAU*ANTOAU
-      XV(K)=XV1(I)*ANTOAU
-      YV(K)=YV1(I)*ANTOAU
-      ZV(K)=ZV1(I)*ANTOAU
-      XV(I)=X0(I)*ANTOAU
-      YV(I)=Y0(I)*ANTOAU
-      ZV(I)=Z0(I)*ANTOAU
- 222  CONTINUE
+         K=I+NTS
+         AS(I)=AS(I)*ANTOAU*ANTOAU
+         XV(K)=XV1(I)*ANTOAU
+         YV(K)=YV1(I)*ANTOAU
+         ZV(K)=ZV1(I)*ANTOAU
+         XV(I)=X0(I)*ANTOAU
+         YV(I)=Y0(I)*ANTOAU
+         ZV(I)=Z0(I)*ANTOAU
+  840 CONTINUE
       NSF=NESF
-C
-C     WRITE OUT COMMON/XYZ/ AND COMMN/SFE/.
-C
-C     CALL TWRITE(50,SCR1,10726,1,10726,1,0)
-C     CALL TWRITE(21,SCR2,4880,1,4880,1,0)
       RETURN
       END
-      SUBROUTINE FILLC(IT,IGBEG,IGSP,IGDF,CA)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      INTEGER SHELLA,SHELLN,SHELLT,SHELLC,SHLADF,AOS
-C
-C     --------------------------
-C     GAUSSIAN 76 (QCPE VERSION)
-C     DECEMBER 1977
-C     CONTROL DATA 7600
-C     --------------------------
-C
-C
-C***********************************************************************
-C     ROUTINE TO OBTAIN S, P, D, AND F COEFFICIENTS FOR /B/.
-C***********************************************************************
-C
-      DIMENSION CA(20)
-      COMMON/B/EXX(360),C1(360),C2(360),C3(360),X(90),Y(90),Z(90),
-     $         JAN(90),SHELLA(90),SHELLN(90),SHELLT(90),SHELLC(90),
-     $         AOS(90),AON(90),NSHELL,MAXTYP
-      DIMENSION C4(90),SHLADF(90)
-      EQUIVALENCE(C4(1),C3(91)),(SHLADF(1),C3(181))
-      COMMON/CFACT/PT5,R3OV2,ROOT3,ROOT5,ROOT15,R1,R2,R4,Z1,Z2,Z3
-C
-C     TEST FOR F-FUNCTIONS.
-      IF(IT-3)10,40,40
-C
-C     NO F-FUNCTIONS ARE INVOLVED, FILL ONLY THE FIRST 10 LOCATIONS
-C     IN CA.
-   10 CA(1)=C1(IGSP)
-C
-C     TEST FOR BEYOND S.
-      IF(IT)50,50,20
-C
-C     FILL P-PART.
-   20 CA(2)=C2(IGSP)
-      CA(3)=C2(IGSP)
-      CA(4)=C2(IGSP)
-C
-C     TEST FOR BEYOND P.
-      IF(IT-1)50,50,30
-C
-C     FILL D-PART, AND WATCH OUT FOR NORMALIZATION.
-C     INDDF PROVIDES INDEXING WHEN ADDED TO IGDF.
-   30 INDDF=IGDF+(IGSP-IGBEG)
-      CA( 5)=C3(INDDF)
-      CA( 6)=C3(INDDF)
-      CA( 7)=C3(INDDF)
-      TEMP=C3(INDDF)*ROOT3
-      CA( 8)=TEMP
-      CA( 9)=TEMP
-      CA(10)=TEMP
-      GO TO 50
-C
-C     FILL F-PART.
-C     INDDF PROVIDES INDEXING INTO C4.
-   40 INDDF=IGDF+(IGSP-IGBEG)
-      CA(11)=C4(INDDF)
-      CA(12)=C4(INDDF)
-      CA(13)=C4(INDDF)
-      TEMP=C4(INDDF)*ROOT5
-      CA(14)=TEMP
-      CA(15)=TEMP
-      CA(16)=TEMP
-      CA(17)=TEMP
-      CA(18)=TEMP
-      CA(19)=TEMP
-      CA(20)=C4(INDDF)*ROOT15
-C
-   50 RETURN
-      END
       SUBROUTINE PURDF1(X)
-      IMPLICIT REAL*8(A-H,O-Z)
+      IMPLICIT DOUBLE PRECISION(A-H,O-Z)
       INTEGER UBOUND,ULPURE
 C
 C     --------------------------
@@ -2311,7 +3360,7 @@ C
       COMMON/LIMIT/IMJ,ISTART,JSTART,IEND,JEND,IRANGE,JRANGE,LENTQ
       COMMON/CFACT/PT5,R3OV2,ROOT3,ROOT5,ROOT15,R1,R2,R4,Z1,Z2,Z3
       COMMON/ORDER/NORDR(20),N6ORD(10),N5ORD(9),N10ORD(10),N7ORD(7),
-     $             LBOUND(4,3),UBOUND(4),ULPURE(4)
+     1             LBOUND(4,3),UBOUND(4),ULPURE(4)
       COMMON/MAX/LAMAX,LBMAX,LPMAX
       COMMON/NEW/INEW,JNEW
       DIMENSION X(10)
@@ -2337,62 +3386,62 @@ C
 C
 C
 C     TEST FOR POSSIBLE BYPASS OF TRNASFORMATION AT B.
-      IF(JTYPE-2)300,100,200
+      IF(JTYPE-2)100,10,40
 C
 C     TEST FOR PURE D AT B.
-  100 IF(IPURD)300,110,300
+   10 IF(IPURD)100,20,100
 C
 C     ******************************************************************
 C     D-TRANSFORM AT B.
 C     ******************************************************************
 C     INDX1 IS THE MAIN INDEX INTO X.
-  110 INDX1=5-JSTART+1
+   20 INDX1=5-JSTART+1
 C     LOOP OVER ALL VALUES OF I.
-      DO 120 I=1,IRANGE
+      DO 30 I=1,IRANGE
 C     FORM 3*Z**2-R**2 PART AT B.
-      DZ2=X(INDX1+2)-PT5*(X(INDX1)+X(INDX1+1))
+         DZ2=X(INDX1+2)-PT5*(X(INDX1)+X(INDX1+1))
 C     FORM X**2-Y**2 AT B.
-      DX2Y2=R3OV2*(X(INDX1)-X(INDX1+1))
+         DX2Y2=R3OV2*(X(INDX1)-X(INDX1+1))
 C     FILL THE INTEGRALS INTO X.
-      X(INDX1  )=DZ2
-      X(INDX1+1)=X(INDX1+4)
-      X(INDX1+2)=X(INDX1+5)
-      X(INDX1+4)=X(INDX1+3)
-      X(INDX1+3)=DX2Y2
-  120 INDX1=INDX1+JRANGE
+         X(INDX1  )=DZ2
+         X(INDX1+1)=X(INDX1+4)
+         X(INDX1+2)=X(INDX1+5)
+         X(INDX1+4)=X(INDX1+3)
+         X(INDX1+3)=DX2Y2
+   30 INDX1=INDX1+JRANGE
 C     BRANCH TO COMPRESSION.
-      GO TO 250
+      GO TO 70
 C
 C
 C     TEST FOR F-TRANSFORMATION.
-  200 IF(IPURF)300,210,300
+   40 IF(IPURF)100,50,100
 C
 C     ******************************************************************
 C     F-TRANSFORM AT B.
 C     ******************************************************************
 C     WE HAVE ONLY F. (IE. NO S=P STUFF).
 C     SET INDX1.
-  210 INDX1=0
+   50 INDX1=0
 C     LOOP OVER ALL POSSIBLE I VALUES.
-      DO 220 I=1,IRANGE
+      DO 60 I=1,IRANGE
 C
-      F0 =X(INDX1+3)-R2*(X(INDX1+6)+X(INDX1+9))
-      F1P=R4*(Z1*X(INDX1+7)-X(INDX1+1)-Z2*X(INDX1+4))
-      F1M=R4*(Z1*X(INDX1+8)-X(INDX1+2)-Z2*X(INDX1+5))
-      F2P=R3*(X(INDX1+6)-X(INDX1+9))
-      F2M=X(INDX1+10)
-      F3P=R1*(X(INDX1+1)-Z3*X(INDX1+4))
-      F3M=R1*(Z3*X(INDX1+5)-X(INDX1+2))
+         F0 =X(INDX1+3)-R2*(X(INDX1+6)+X(INDX1+9))
+         F1P=R4*(Z1*X(INDX1+7)-X(INDX1+1)-Z2*X(INDX1+4))
+         F1M=R4*(Z1*X(INDX1+8)-X(INDX1+2)-Z2*X(INDX1+5))
+         F2P=R3*(X(INDX1+6)-X(INDX1+9))
+         F2M=X(INDX1+10)
+         F3P=R1*(X(INDX1+1)-Z3*X(INDX1+4))
+         F3M=R1*(Z3*X(INDX1+5)-X(INDX1+2))
 C
-      X(INDX1+1)=F0
-      X(INDX1+2)=F1P
-      X(INDX1+3)=F1M
-      X(INDX1+4)=F2P
-      X(INDX1+5)=F2M
-      X(INDX1+6)=F3P
-      X(INDX1+7)=F3M
+         X(INDX1+1)=F0
+         X(INDX1+2)=F1P
+         X(INDX1+3)=F1M
+         X(INDX1+4)=F2P
+         X(INDX1+5)=F2M
+         X(INDX1+6)=F3P
+         X(INDX1+7)=F3M
 C
-  220 INDX1=INDX1+JRANGE
+   60 INDX1=INDX1+JRANGE
 C
 C
 C     AFTER TRANSFORMATION AT B, IT IS NECESSARY TO ELIMINATE
@@ -2402,18 +3451,18 @@ C     INDX2 COUNTS INTO COMPRESSED ARRAY.
 C     INDX1 COUNTS FROM THE UN-COMPRESSED ARRAY.
 C
 C     SET JENDP AND JRPURE.
-  250 JENDP=ULPURE(LBMAX)
+   70 JENDP=ULPURE(LBMAX)
       JRPURE=JENDP-JSTART+1
 C
       INDX1=0
       INDX2=0
 C
 C     LOOP OVER ALL I, NEW J.
-      DO 270 I=1,IRANGE
-      DO 260 J=1,JRPURE
-  260 X(INDX2+J)=X(INDX1+J)
-      INDX1=INDX1+JRANGE
-  270 INDX2=INDX2+JRPURE
+      DO 90 I=1,IRANGE
+         DO 80 J=1,JRPURE
+   80    X(INDX2+J)=X(INDX1+J)
+         INDX1=INDX1+JRANGE
+   90 INDX2=INDX2+JRPURE
 C
 C     TRANSFORMATION AT B IS COMPLETE.
 C     UPDATE NECESSARY /LIMIT/ VARIABLES.
@@ -2422,16 +3471,16 @@ C     UPDATE NECESSARY /LIMIT/ VARIABLES.
 C
 C
 C     TEST FOR POSSIBLE BYPASS OF TRANSFORMATION AT A.
-  300 IF(ITYPE-2)510,310,400
+  100 IF(ITYPE-2)180,110,140
 C
 C     TEST FOR D-TRANSFORM AT A.
-  310 IF(IPURD)510,320,510
+  110 IF(IPURD)180,120,180
 C
 C     ******************************************************************
 C     EXECUTE D-TRANSFORM AT A.
 C     ******************************************************************
 C     OBTAIN STARTING INDEX.
-  320 INDX1=(5-ISTART)*JRANGE+1
+  120 INDX1=(5-ISTART)*JRANGE+1
 C     OBTAIN INCREMENTS.
       INCR1=JRANGE
       INCR2=INCR1+JRANGE
@@ -2440,26 +3489,26 @@ C     OBTAIN INCREMENTS.
       INCR5=INCR4+JRANGE
 C
 C     PERFORM D-TRANSFORM AT A.
-      DO 330 J=1,JRANGE
-      DZ2=X(INDX1+INCR2)-PT5*(X(INDX1)+X(INDX1+INCR1))
-      DX2Y2=R3OV2*(X(INDX1)-X(INDX1+INCR1))
-      X(INDX1      )=DZ2
-      X(INDX1+INCR1)=X(INDX1+INCR4)
-      X(INDX1+INCR2)=X(INDX1+INCR5)
-      X(INDX1+INCR4)=X(INDX1+INCR3)
-      X(INDX1+INCR3)=DX2Y2
-  330 INDX1=INDX1+1
-      GO TO 500
+      DO 130 J=1,JRANGE
+         DZ2=X(INDX1+INCR2)-PT5*(X(INDX1)+X(INDX1+INCR1))
+         DX2Y2=R3OV2*(X(INDX1)-X(INDX1+INCR1))
+         X(INDX1      )=DZ2
+         X(INDX1+INCR1)=X(INDX1+INCR4)
+         X(INDX1+INCR2)=X(INDX1+INCR5)
+         X(INDX1+INCR4)=X(INDX1+INCR3)
+         X(INDX1+INCR3)=DX2Y2
+  130 INDX1=INDX1+1
+      GO TO 170
 C
 C
 C     TEST FOR REQUIRED PURE F AT A.
-  400 IF(IPURF)510,410,510
+  140 IF(IPURF)180,150,180
 C
 C     ******************************************************************
 C     TRANSFORM TO PURE F AT A.
 C     ******************************************************************
 C     OBTAIN STARTING INDEX.
-  410 INDX1=1
+  150 INDX1=1
 C     OBTAIN INCREMENTS.
       INCR1=JRANGE
       INCR2=INCR1+JRANGE
@@ -2472,84 +3521,31 @@ C     OBTAIN INCREMENTS.
       INCR9=INCR8+JRANGE
 C
 C     COMMENCE F-TRANSFORMATION LOOP AT A.
-      DO 420 J=1,JRANGE
+      DO 160 J=1,JRANGE
 C
-      F0 =X(INDX1+INCR2)-R2*(X(INDX1+INCR5)+X(INDX1+INCR8))
-      F1P=R4*(Z1*X(INDX1+INCR6)-X(INDX1)-Z2*X(INDX1+INCR3))
-      F1M=R4*(Z1*X(INDX1+INCR7)-X(INDX1+INCR1)-Z2*X(INDX1+INCR4))
-      F2P=R3*(X(INDX1+INCR5)-X(INDX1+INCR8))
-      F2M=X(INDX1+INCR9)
-      F3P=R1*(X(INDX1)-Z3*X(INDX1+INCR3))
-      F3M=R1*(Z3*X(INDX1+INCR4)-X(INDX1+INCR1))
+         F0 =X(INDX1+INCR2)-R2*(X(INDX1+INCR5)+X(INDX1+INCR8))
+         F1P=R4*(Z1*X(INDX1+INCR6)-X(INDX1)-Z2*X(INDX1+INCR3))
+         F1M=R4*(Z1*X(INDX1+INCR7)-X(INDX1+INCR1)-Z2*X(INDX1+INCR4))
+         F2P=R3*(X(INDX1+INCR5)-X(INDX1+INCR8))
+         F2M=X(INDX1+INCR9)
+         F3P=R1*(X(INDX1)-Z3*X(INDX1+INCR3))
+         F3M=R1*(Z3*X(INDX1+INCR4)-X(INDX1+INCR1))
 C
-      X(INDX1      )=F0
-      X(INDX1+INCR1)=F1P
-      X(INDX1+INCR2)=F1M
-      X(INDX1+INCR3)=F2P
-      X(INDX1+INCR4)=F2M
-      X(INDX1+INCR5)=F3P
-      X(INDX1+INCR6)=F3M
+         X(INDX1      )=F0
+         X(INDX1+INCR1)=F1P
+         X(INDX1+INCR2)=F1M
+         X(INDX1+INCR3)=F2P
+         X(INDX1+INCR4)=F2M
+         X(INDX1+INCR5)=F3P
+         X(INDX1+INCR6)=F3M
 C
-  420 INDX1=INDX1+1
+  160 INDX1=INDX1+1
 C
 C     GET CORRECTED I VALUES TO /LIMIT/.
-  500 IEND=ULPURE(LAMAX)
+  170 IEND=ULPURE(LAMAX)
       IRANGE=IEND-ISTART+1
 C
-  510 RETURN
-      END
-      SUBROUTINE GETCC1(CC,AP,BP)
-C
-C     --------------------------
-C     GAUSSIAN 76 (QCPE VERSION)
-C     DECEMBER 1977
-C     CONTROL DATA 7600
-C     --------------------------
-C
-C
-C    *******************************************************************
-C
-C          THIS SUBROUTINE CALCULATES THE COEFFICIENTS WHICH TRANSFORM
-C     THE TWO CENTER INTEGRALS INTO THE THREE CENTER INTEGRALS.  THIS
-C     TRANSFORMATION IS CARRIED OUT IN SUBROUTINE GET3C, WHICH SHOULD
-C     BE CONSULTED FOR MORE DETAILS OF THE USE OF THESE COEFFICIENTS.
-C
-C          THE COEFFICIENT MATRIX IS THREE DIMENSIONAL, ALTHOUGH THE
-C     ACTUAL INDEXING IS DONE LINEARLY.  THE COEFFICIENTS ARE
-C     CALCULATED FROM CC(1,1,1)=1.0, AND THE RECURSION FORMULAE0
-C
-C          CC(LW,LB,LA) = AP*CC(LW,LB,LA-1) + CC(LW-1,LB,LA-1)
-C
-C          CC(LW,LB,LA) = BP*CC(LW,LB-1,LA) + CC(LW-1,LB-1,LA)
-C
-C    *******************************************************************
-C
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      COMMON/MAX/LAMAX,LBMAX,LPMAX
-      COMMON/CONST/ZERO
-      DIMENSION CC(112)
-C
-      DO 70 LA=1,LAMAX
-      INDA=28*(LA-1)
-      DO 70 LB=1,LBMAX
-      IND=INDA+7*(LB-1)
-      LWMAX=LA+LB-1
-      DO 70 LW=1,LWMAX
-      IF(LA-1)40,40,10
-   10 LWM1=IND+LW-29
-      IF(LWM1.GT.0) GO TO 30
-      CC(IND+LW)=AP*CC(IND+LW-28)
-      GO TO 70
-   30 CC(IND+LW)=AP*CC(IND+LW-28)+CC(LWM1)
-      GO TO 70
-   40 IF(LB.EQ.1) GO TO 70
-      LWM1=IND+LW-8
-      IF(LWM1.GT.0) GO TO 60
-      CC(IND+LW)=BP*CC(IND+LW-7)
-      GO TO 70
-   60 CC(IND+LW)=BP*CC(IND+LW-7)+CC(LWM1)
-   70 CONTINUE
-      RETURN
+  180 RETURN
       END
       SUBROUTINE RFIELD
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
@@ -2560,28 +3556,34 @@ C
 C     COMMON ANTOAU,FCONV(3),ICDUM(131)
       COMMON /POLY/SX(500),SY(500),SZ(500),SRD(500),
      1SURF(500),
-     *ISPHE(1500),TA(1500),STOT,VTOT,N,NC(NUMATM)
+     2ISPHE(1500),TA(1500),STOT,VTOT,N,NC(NUMATM)
       COMMON /MSTSOL/EPS,DMP,MC,ICOMP,IFIELD,ICAV
       COMMON /MSTCAV/TABS,VMOL,DMOL,TCE,STEN,DSTEN,CMF
       COMMON /MSTXYZ/XV(3575),YV(3575),ZV(3575),NTS
       COMMON/FINAL/GVW,GVWS,ELC1,EC1
       COMMON /BBNEW/VALV(3575)
       DIMENSION POT(1500),POTS(1500)
-      DIMENSION SCR1(10726),SCR2(3078)
+      DIMENSION SCR1(10725),SCR2(3078)
       COMMON/MSTQ/QS(1500),MFLAG,ITERQ
 C     DIMENSION QSFE(15),QS1(1500),QS0(1500)
       DIMENSION QSFE(500),QS1(1500),QS0(1500)
+      COMMON /CHANEL/ IFILES(30)
+      COMMON /FUNCON/ FPC(2,10),IFPC
+      EQUIVALENCE (IW,IFILES(6)),(ISOL,IFILES(17))
       EQUIVALENCE(XV(1),SCR1(1)),(SCR2(1),SX(1))
       DATA PI/3.14159265D0/
       DATA ZERO,PT5,ONE,TWO,FOUR/0.0D0, .5D0,1.0D0,2.0D0,4.0D0/
       DATA TPI,FPI/6.28318531D0,12.56637061D0/
-C     DATA MC,DMP,GC,AVGDR,CEKM/4,1.0D0,1.9865D0,0.60228D0,0.0014389D0/
-      DATA GC,AVGDR,CEKM/1.9865D0,0.60228D0,0.0014389D0/
- 7000 FORMAT(' * PARAMETRI FISICI DEL SOLVENTE * ',//,
-     *' COSTANTE DIELETTRICA ',F8.3,///)
- 7010 FORMAT(' * REAZIONE DEL DIELETTRICO CALCOLATA A LIVELLO',
-     *A4,'*')
-  10  FORMAT(F8.3,I3,F6.3,4I3)
+      DATA CEKM/0.0014389D0/
+      GC=FPC(IFPC,5)
+      AVGDR=FPC(IFPC,10)*1.D-24
+      CONST=FPC(IFPC,4)*FPC(IFPC,9)
+C      CEKM=
+   10 FORMAT(' * SOLVENT PHYSICAL PARAMETERS * ',//,
+     1' PERMITTIVITY ',F8.3,///)
+   20 FORMAT(' * DIELECTRIC REACTION FIELD COMPUTED AT LEVEL',
+     1A4,'*')
+   30 FORMAT(F8.3,I3,F6.3,4I3)
       IF(MC.EQ.0)THEN
          APP='1A'
          IF(ICOMP.NE.0)APP='1B'
@@ -2590,235 +3592,224 @@ C     DATA MC,DMP,GC,AVGDR,CEKM/4,1.0D0,1.9865D0,0.60228D0,0.0014389D0/
          APP='2A'
          IF(ICOMP.NE.0)APP='2B'
       END IF
-      IF(MFLAG.EQ.0)WRITE(17,7000)EPS
-      WRITE(17,7010)APP
-      CONV=-(EPS-ONE)/EPS
+      IF(MFLAG.EQ.0)WRITE(ISOL,10)EPS
+      WRITE(ISOL,20)APP
+      CONV=-(EPS-1.D0)/EPS
       FACT=CONV/FPI
       QTOT1=ZERO
       ELET1=ZERO
-      DO 90 I=1,N
-   90 QSFE(I)=ZERO
+      DO 40 I=1,N
+   40 QSFE(I)=ZERO
       N1=NTS+1
       DR=DSQRT((XV(1)-XV(N1))**2+(YV(1)-YV(N1))**2+(ZV(1)-ZV(N1))**2)
 C-----------------------------------------------------------------------
 C                  APPROXIMATION I:
 C-----------------------------------------------------------------------
-      DO 100 I=1,NTS
-C     IF(IPRINT.EQ.2.AND.I.EQ.1)WRITE(IOUT,5020)
-      IF (I.EQ.1) WRITE(17,5020)
- 5020 FORMAT(/,' SFERA  TESSERA       X         Y         Z       CARIC'
-     *,'A   AREA    C.E.')
-      K=I+NTS
-      L=ISPHE(I)
+      DO 70 I=1,NTS
+         IF (I.EQ.1) WRITE(ISOL,50)
+   50    FORMAT(/,' SPHERE ELEMENT       X         Y         Z      CHAR
+     1GE','A   AREA    C.E.')
+         K=I+NTS
+         L=ISPHE(I)
 C7020 FORMAT(2F10.5)
-      EF=(VALV(K)-VALV(I))/DR
-      QS(I)=TA(I)*FACT*EF
-C     IF(IPRINT.EQ.2)WRITE(IOUT,5030)L,I,XV(I),YV(I),ZV(I),QS(I),TA(I),
-      WRITE(17,5030)L,I,XV(I),YV(I),ZV(I),QS(I),TA(I),EF
- 5030 FORMAT(2(I5,5X),6F10.7)
-      POT(I)=VALV(I)
-      QSFE(L)=QSFE(L)+QS(I)
-      QTOT1=QTOT1+QS(I)
-      ELET1=ELET1+QS(I)*POT(I)
-  100 CONTINUE
+         EF=(VALV(K)-VALV(I))/DR
+         QS(I)=TA(I)*FACT*EF
+         WRITE(ISOL,60)L,I,XV(I),YV(I),ZV(I),QS(I),TA(I),EF
+   60    FORMAT(2(I5,5X),6F10.7)
+         POT(I)=VALV(I)
+         QSFE(L)=QSFE(L)+QS(I)
+         QTOT1=QTOT1+QS(I)
+         ELET1=ELET1+QS(I)*POT(I)
+   70 CONTINUE
       ELET1=ELET1*PT5
 C
- 5045 FORMAT(I5,5X,F12.7)
- 5050 FORMAT(//, '    CARICA TOTALE  SUPERFICIE DELLA CAVITA  ',F10.5)
- 5060 FORMAT(/,' INTERAZIONE SOLUTO DIELETTRICO/2 ',F10.5
-     *       ,'A.U.',F15.5,'KCAL/MOLE')
- 5040 FORMAT(/,'    CARICA SULLA SUPERFICIE DELLE SINGOLE SFERE',/,
-     *'   SFERA      CARICA ')
+   80 FORMAT(I5,5X,F12.7)
+   90 FORMAT(//, '    TOTAL CHARGE ON THE CAVITY SURFACE ',F10.5)
+  100 FORMAT(/,' SOLUTION DIELECTRIC INTERACTION/2 ',F10.5
+     1       ,'A.U.',F15.5,'KCAL/MOLE')
+  110 FORMAT(/,'    CHARGE ON THE SURFACE FOR EVERY SPHERE',/,
+     1'   SPHERE     CHARGE ')
 C-----------------------------------------------------------------------
-      WRITE(17,7010)'1A'
-      WRITE(17,5060)ELET1,ELET1*627.51
+      WRITE(ISOL,20)'1A'
+      WRITE(ISOL,100)ELET1,ELET1*CONST 
 C     IF(IPRINT.EQ.1)THEN
-          WRITE(17,5050)QTOT1
-          WRITE(17,5040)
-          DO 110 I=1,N
-          WRITE(17,5045)I,QSFE(I)
-  110     CONTINUE
+      WRITE(ISOL,90)QTOT1
+      WRITE(ISOL,110)
+      DO 120 I=1,N
+         WRITE(ISOL,80)I,QSFE(I)
+  120 CONTINUE
 C     END IF
       IF(MC.EQ.0)THEN
-        IF(ICOMP.EQ.0)GOTO 650
-        GOTO 800
+         IF(ICOMP.EQ.0)GOTO 360
+         GOTO 270
       END IF
 C-----------------------------------------------------------------------
 C            APPROXIMATION II:
 C-----------------------------------------------------------------------
       M=0
-      TLM=ONE-DMP
-      DO 135 I=1,NTS
-  135 QS0(I)=QS(I)
-  170 M=M+1
+      TLM=1.D0-DMP
+      DO 130 I=1,NTS
+  130 QS0(I)=QS(I)
+  140 M=M+1
       ELET3=ZERO
       ELET2=ZERO
-      DO 185 I=1,N
-  185 QSFE(I)=ZERO
-      DO 130 I=1,NTS
-  130 QS1(I)=QS(I)
-C     IF(IPRINT.EQ.3)WRITE(IOUT,5065)M
-      WRITE(17,5065)M
- 5065 FORMAT(//,' CICLO DI AUTO POLARIZZAZIONE  ',I4)
+      DO 150 I=1,N
+  150 QSFE(I)=ZERO
+      DO 160 I=1,NTS
+  160 QS1(I)=QS(I)
+      WRITE(ISOL,170)M
+  170 FORMAT(//,' SELF-POLARIZATION CYCLE      ',I4)
       CHRG=ZERO
 C
-      DO 140 I=1,NTS
-C     IF(IPRINT.EQ.4.AND.I.EQ.1)WRITE(IOUT,5070)
-      IF(I.EQ.1)WRITE(17,5070)
- 5070 FORMAT(/,' TESSERA    CARICA(NON POL.)   AUTOPOL.     CAMBERING
-     *   ALTRE CARICHE    CARICA1(POL.)    CARICA2(POL.)')
-      K=I+NTS
-      XI=XV(I)
-      YI=YV(I)
-      ZI=ZV(I)
-      XD=XV(K)
-      YD=YV(K)
-      ZD=ZV(K)
-      QSI=QS1(I)
-      KS=ISPHE(I)
+      DO 220 I=1,NTS
+         IF(I.EQ.1)WRITE(ISOL,180)
+  180 FORMAT(/,' ELEMENT    CHARGE(NO  POL.)  SELF-POL.     CAMBERING  
+     *   ANOTHER CHARGE   CHARGE1(POL.)    CHARGE2(POL.)')            
+         K=I+NTS
+         XI=XV(I)
+         YI=YV(I)
+         ZI=ZV(I)
+         XD=XV(K)
+         YD=YV(K)
+         ZD=ZV(K)
+         QSI=QS1(I)
+         KS=ISPHE(I)
 C
-      RAD=TA(I)/(FPI*SRD(KS)**2)
-      QSELF0=-TPI*QSI*FACT
-      QCUMB=QSELF0*DSQRT(RAD)
-      QSELF1=QSELF0-QCUMB
-      POTSLF=TPI*QSI/DSQRT(TA(I)*PI)
-C     IF(IPRINT.EQ.4.AND.I.EQ.1)WRITE(IOUT,7020)POTSLF
-      IF(I.EQ.1)WRITE(17,7020)POTSLF
+         RAD=TA(I)/(FPI*SRD(KS)**2)
+         QSELF0=-TPI*QSI*FACT
+         QCUMB=QSELF0*DSQRT(RAD)
+         QSELF1=QSELF0-QCUMB
+         POTSLF=TPI*QSI/DSQRT(TA(I)*PI)
+         IF(I.EQ.1)WRITE(ISOL,210)POTSLF
 C
-      POTSI=ZERO
-      QSA=ZERO
-      DO 150 J=1,NTS
-      IF(J.EQ.I)GOTO 150
-      QSJ=QS1(J)
-      XJ=XV(J)
-      YJ=YV(J)
-      ZJ=ZV(J)
-      RDJ=DSQRT((XD-XJ)**2+(YD-YJ)**2+(ZD-ZJ)**2)
-      RIJ=DSQRT((XI-XJ)**2+(YI-YJ)**2+(ZI-ZJ)**2)
-      IF(RIJ.LT..026)GOTO 150
-      EFN=QSJ*(ONE/RDJ-ONE/RIJ)/DR
-      QSA=QSA+EFN*TA(I)*FACT
-      POTSI=POTSI+QSJ/RIJ
-  150 CONTINUE
-C     FINE CICLO INTERNO SULLE CARICHE
-      QSIB=QS0(I)+QSELF1+QSA
-      QS(I)=QSIB*DMP+QSI*TLM
-C     IF(IPRINT.EQ.4)WRITE(IOUT,5080)I,QSI,QSELF0,QCUMB,QSA,QSIB,QS(I)
-      WRITE(17,5080)I,QSI,QSELF0,QCUMB,QSA,QSIB,QS(I)
- 5080 FORMAT(I5,6F15.5)
-      POTS(I)=POTSI+POTSLF
-C     IF(IPRINT.EQ.4.AND.I.EQ.1)WRITE(IOUT,7020)POTSI,POTS(I)
-      IF(I.EQ.1)WRITE(17,7020)POTSI,POTS(I)
- 7020 FORMAT(3F10.5)
-      L=ISPHE(I)
-      QSFE(L)=QSFE(L)+QS(I)
-      ELET3=ELET3+POTS(I)*QS(I)
-      ELET2=ELET2+QS(I)*POT(I)
-      CHRG=CHRG+QS(I)
-  140 CONTINUE
-C     FINE CICLO ESTERNO SULLE CARICHE
-C     IF(IPRINT.EQ.3)WRITE(IOUT,5050)CHRG
-      WRITE(17,5050)CHRG
+         POTSI=ZERO
+         QSA=ZERO
+         DO 190 J=1,NTS
+            IF(J.EQ.I)GOTO 190
+            QSJ=QS1(J)
+            XJ=XV(J)
+            YJ=YV(J)
+            ZJ=ZV(J)
+            RDJ=DSQRT((XD-XJ)**2+(YD-YJ)**2+(ZD-ZJ)**2)
+            RIJ=DSQRT((XI-XJ)**2+(YI-YJ)**2+(ZI-ZJ)**2)
+            IF(RIJ.LT..026)GOTO 190
+            EFN=QSJ*(1.D0/RDJ-1.D0/RIJ)/DR
+            QSA=QSA+EFN*TA(I)*FACT
+            POTSI=POTSI+QSJ/RIJ
+  190    CONTINUE
+C     END OF INTERNAL CYCLE OVER CHARGES   
+         QSIB=QS0(I)+QSELF1+QSA
+         QS(I)=QSIB*DMP+QSI*TLM
+         WRITE(ISOL,200)I,QSI,QSELF0,QCUMB,QSA,QSIB,QS(I)
+  200    FORMAT(I5,6F15.5)
+         POTS(I)=POTSI+POTSLF
+         IF(I.EQ.1)WRITE(ISOL,210)POTSI,POTS(I)
+  210    FORMAT(3F10.5)
+         L=ISPHE(I)
+         QSFE(L)=QSFE(L)+QS(I)
+         ELET3=ELET3+POTS(I)*QS(I)
+         ELET2=ELET2+QS(I)*POT(I)
+         CHRG=CHRG+QS(I)
+  220 CONTINUE
+C     END OF EXTERNAL CYCLE OVER CHARGES   
+      WRITE(ISOL,90)CHRG
       ELET3=ELET3*PT5
       ELET2=ELET2*PT5
-C     IF(IPRINT.EQ.3)WRITE(IOUT,5060)ELET2,ELET2*627.51
-      WRITE(17,5060)ELET2,ELET2*627.51
- 5090 FORMAT(' INTERAZIONE 1/2(SIGMA(POL.)*M.E.P.) ',F10.5,
-     *' INTERAZIONE 1/2(SIGMA(POL.)*SIGMA(POL.)) ',F10.5)
-      IF(M.EQ.1)GOTO 160
-      IF(DABS(PCHRG-CHRG).LT..0001)GOTO 180
-  160 PCHRG=CHRG
-      IF(M.LT.MC)GO TO 170
-  180 QTOT=CHRG
-      WRITE(17,7010)'2A'
-      WRITE(17,5060)ELET2,ELET2*627.51
+      WRITE(ISOL,100)ELET2,ELET2*CONST 
+  230 FORMAT(' INTERACTION 1/2(SIGMA(POL.)*M.E.P.) ',F10.5,      
+     *' INTERACTION 1/2(SIGMA(POL.)*SIGMA(POL.)) ',F10.5)       
+      IF(M.EQ.1)GOTO 240
+      IF(DABS(PCHRG-CHRG).LT..0001)GOTO 250
+  240 PCHRG=CHRG
+      IF(M.LT.MC)GO TO 140
+  250 QTOT=CHRG
+      WRITE(ISOL,20)'2A'
+      WRITE(ISOL,100)ELET2,ELET2*CONST 
 C     IF(IPRINT.EQ.1)THEN
-          WRITE(17,5050)CHRG
-          WRITE(17,5040)
-          DO 112 I=1,N
-          WRITE(17,5045)I,QSFE(I)
-  112     CONTINUE
+      WRITE(ISOL,90)CHRG
+      WRITE(ISOL,110)
+      DO 260 I=1,N
+         WRITE(ISOL,80)I,QSFE(I)
+  260 CONTINUE
 C     END IF
-      IF(ICOMP.EQ.0)GOTO 650
+      IF(ICOMP.EQ.0)GOTO 360
 C-----------------------------------------------------------------------
 C               APPROXIMATION III: CHARGE COMPENSATION.
 C-----------------------------------------------------------------------
- 800  IF(MC.EQ.0)WRITE(17,7010)'1B'
-      IF(MC.NE.0)WRITE(17,7010)'2B'
-      VCHRG=DFLOAT(ICHARG)*CONV
+  270 IF(MC.EQ.0)WRITE(ISOL,20)'1B'
+      IF(MC.NE.0)WRITE(ISOL,20)'2B'
+      VCHRG=FLOAT(ICHARG)*CONV
       QDIF=QTOT-VCHRG
-      WRITE(17,6010)VCHRG,CHRG
- 6010 FORMAT(/,5X,'CARICA VIRTUALE TEORICA',F15.6,
-     *5X,'CARICA VIRTUALE EFFETTIVA',3X,F10.6)
+      WRITE(ISOL,280)VCHRG,CHRG
+  280 FORMAT(/,5X,'THEORETICAL VIRTUAL CHARGE',F15.6,
+     15X,'EFFECTIVE VIRTUAL CHARGE',3X,F10.6)
       QNEG=ZERO
       QPOS=ZERO
-      DO 302 I=1,N
-  302 QSFE(I)=ZERO
+      DO 290 I=1,N
+  290 QSFE(I)=ZERO
       DO 300 I=1,NTS
   300 IF(QS(I).LT.ZERO)QNEG=QNEG-QS(I)
       QPOS=QTOT+QNEG
       FC=PT5
       IF(QPOS.GT..00001.AND.QNEG.GT..00001)THEN
-        FCP=ONE-FC*QDIF/QPOS
-        FCN=ONE+FC*QDIF/QNEG
+         FCP=1.D0-FC*QDIF/QPOS
+         FCN=1.D0+FC*QDIF/QNEG
       END IF
       IF(QNEG.LT..00001)THEN
-        FCP=ONE-ONE*QDIF/QPOS
-        FCN=ONE
+         FCP=1.D0-ONE*QDIF/QPOS
+         FCN=1.D0
       END IF
       IF(QPOS.LT..00001)THEN
-        FCN=ONE+ONE*QDIF/QNEG
-        FCP=ONE
+         FCN=1.D0+ONE*QDIF/QNEG
+         FCP=1.D0
       END IF
       QTOT=ZERO
-      DO 205 I=1,NTS
-      IF(QS(I).LT.ZERO)QS(I)=QS(I)*FCN
-      IF(QS(I).GT.ZERO)QS(I)=QS(I)*FCP
-  205 QTOT=QTOT+QS(I)
+      DO 310 I=1,NTS
+         IF(QS(I).LT.ZERO)QS(I)=QS(I)*FCN
+         IF(QS(I).GT.ZERO)QS(I)=QS(I)*FCP
+  310 QTOT=QTOT+QS(I)
 C-----------------------------------------------------------------------
       ELET4=ZERO
       ELET5=ZERO
-  200 DO 210 I=1,NTS
-      L=ISPHE(I)
-      QSFE(L)=QSFE(L)+QS(I)
-      REQ=DSQRT(TA(I)/PI)
-      POTS(I)=TPI*QS(I)*REQ/TA(I)
-      DO 220 J=1,NTS
-      RIJ=DSQRT((XV(I)-XV(J))**2+(YV(I)-YV(J))**2+(ZV(I)-ZV(J))**2)
-      IF(RIJ.LT..026)GOTO 220
-      POTS(I)=POTS(I)+QS(J)/RIJ
-  220 CONTINUE
-      ELET5=ELET5+POTS(I)*QS(I)
-      ELET4=ELET4+POT(I)*QS(I)
-  210 CONTINUE
+  320 DO 340 I=1,NTS
+         L=ISPHE(I)
+         QSFE(L)=QSFE(L)+QS(I)
+         REQ=DSQRT(TA(I)/PI)
+         POTS(I)=TPI*QS(I)*REQ/TA(I)
+         DO 330 J=1,NTS
+            RIJ=DSQRT((XV(I)-XV(J))**2+(YV(I)-YV(J))**2+(ZV(I)-ZV(J))**2
+     1)
+            IF(RIJ.LT..026)GOTO 330
+            POTS(I)=POTS(I)+QS(J)/RIJ
+  330    CONTINUE
+         ELET5=ELET5+POTS(I)*QS(I)
+         ELET4=ELET4+POT(I)*QS(I)
+  340 CONTINUE
       ELET4=ELET4*PT5
       ELET5=ELET5*PT5
-      WRITE(17,5060)ELET4,ELET4*627.51
-C       IF(IPRINT.EQ.1)THEN
-          WRITE(17,5040)
-          DO 114 I=1,N
-          WRITE(17,5045)I,QSFE(I)
-  114     CONTINUE
-C     END IF
-C 650 CALL TWRITE(20,QS,1500,1,1500,1,0)
- 650  CONTINUE
-  900 CONTINUE
+      WRITE(ISOL,100)ELET4,ELET4*CONST 
+      WRITE(ISOL,110)
+      DO 350 I=1,N
+         WRITE(ISOL,80)I,QSFE(I)
+  350 CONTINUE
+  360 CONTINUE
+  370 CONTINUE
 C-----------------------------------------------------------------------
-C   ENERGIA DI CAVITAZIONE:    R.A. PIEROTTI
+C    CAVITATION ENERGY         R.A. PIEROTTI
 C                              CHEM. REVIEW, 76,717,(1976).
 C-----------------------------------------------------------------------
-      IF (ICAV.EQ.0)GOTO 910
-      IF (MFLAG.NE.0)GOTO 910
+      IF (ICAV.EQ.0)GOTO 420
+      IF (MFLAG.NE.0)GOTO 420
 C     READ(IN,500)TABS,VMOL,DMOL,TCE
-  500 FORMAT(6F10.5)
+  380 FORMAT(6F10.5)
       DCAV=DSQRT(STOT/PI)
       TABS2=TABS**2
       DENUM=AVGDR/VMOL
       YP=DENUM*PI*DMOL**3/6.0D0
-      YPM1=ONE-YP
+      YPM1=1.D0-YP
       RP=DCAV/DMOL
       ECF=TCE*GC*TABS2*YP/(YPM1**3)
-      EC=ECF*(YPM1**2+3.D0*YPM1*RP+3.D0*(ONE+TWO*YP)*RP*RP)/1000.0D0
+      EC=ECF*(YPM1**2+3.D0*YPM1*RP+3.D0*(1.D0+TWO*YP)*RP*RP)/1000.0D0
       SIG=(DCAV+DMOL)*PT5
       RAP=YP/YPM1
       RAP2=RAP**2
@@ -2827,43 +3818,43 @@ C     READ(IN,500)TABS,VMOL,DMOL,TCE
       PK2=(12.D0*RAP+18*RAP2)/DMOL**2
       ELC=(PK2*SIG+PK1)*SIG+PK0
       ELC=ELC*GC*TABS/1000.D0
-      WRITE(6,6050)ELC,TCE,EC,DENUM,DMOL,DCAV
+      WRITE(IW,390)ELC,TCE,EC,DENUM,DMOL,DCAV
       ELC1=ELC
       EC1=EC
- 6050 FORMAT( //,' PIEROTTI: FREE ENERGY OF CAVITATION',F9.5,'KCAL/MOLE'
-     *,5X,'THERMAL EXPANSION COEF.=',F14.6,/,
-     *11X,'CAVITATION EN (ENTHALPY)',F9.5,' KCAL/MOLE',
-     *5X,'NUMERAL DENSITY=',F22.6,/,
-     *60X,'SOLVENT MOLECULE DIAMETER ',F12.6,/,
-     *60X,'CAVITY DIAMETER ',F22.6)
+  390 FORMAT( //,' PIEROTTI: FREE ENERGY OF CAVITATION',F9.5,'KCAL/MOLE'
+     1,5X,'THERMAL EXPANSION COEF.=',F14.6,/,
+     211X,'CAVITATION EN (ENTHALPY)',F9.5,' KCAL/MOLE',
+     35X,'NUMERAL DENSITY=',F22.6,/,
+     460X,'SOLVENT MOLECULE DIAMETER ',F12.6,/,
+     560X,'CAVITY DIAMETER ',F22.6)
 C-----------------------------------------------------------------------
 C    ENERGIA DI CAVITAZIONE:  SINANOGLU AT ALL
 C                             T.C.A. 42,310,(1976)
 C-----------------------------------------------------------------------
 C     READ(IN,500)STEN,DSTEN,CMF
-      CMFM=(CMF-ONE)/RP**2+ONE
+      CMFM=(CMF-1.D0)/RP**2+1.D0 
       ELC=STEN*CMFM*STOT*CEKM
-      EC=ELC*(ONE+DSTEN-TWO*TABS*TCE/3.D0)
-      WRITE(6,6060)ELC,CMF,EC,STEN,DSTEN,TABS
-6060  FORMAT(//,' SINANOGLU: CAVITATION FREE ENERGY ',F9.5,'KCAL/MOLE'
-     *,5X,'MICROSCOP. CAVITY FACTOR ',F14.6,/,
-     *11X,' CAVITATION EN.(ENTHALPY) ',F9.5,' KCAL/MOLE',
-     *5X,'SURFACE TENSION=',F22.6,/,
-     *60X,'SURFACE TENSION DERIVATE ',F12.6,/,
-     *60X,'ABSOLUTE TEMPERATURE ',F22.6,/,
-     *10X,'**************************************************',/)
+      EC=ELC*(1.D0+DSTEN-TWO*TABS*TCE/3.D0)
+      WRITE(IW,400)ELC,CMF,EC,STEN,DSTEN,TABS
+  400 FORMAT(//,' SINANOGLU: CAVITATION FREE ENERGY ',F9.5,'KCAL/MOLE'
+     1,5X,'MICROSCOP. CAVITY FACTOR ',F14.6,/,
+     211X,' CAVITATION EN.(ENTHALPY) ',F9.5,' KCAL/MOLE',
+     35X,'SURFACE TENSION=',F22.6,/,
+     460X,'SURFACE TENSION DERIVATE ',F12.6,/,
+     560X,'ABSOLUTE TEMPERATURE ',F22.6,/,
+     610X,'**************************************************',/)
 C-----------------------------------------------------------------------
-C     CALCOLO DI CAMPO E POTENZIALE ELETTRICO DI REAZIONE.
+C     CALCULATION OF REACTION FIELD AT SELECTED POINTS    
 C-----------------------------------------------------------------------
- 6080 FORMAT(/,'SFERA  TESSERA           X         Y         Z       ',
-     *'CARICA')
+  410 FORMAT(/,'SFERA  TESSERA           X         Y         Z       ',
+     1'CARICA')
 C 910 MFLAG=0
-  910 CONTINUE
+  420 CONTINUE
 C     IF(IPRINT.EQ.2)THEN
-        WRITE(17,6080)
-        DO 620 I=1,NTS
-        L=ISPHE(I)
-  620   WRITE(17,5030)L,I,XV(I),YV(I),ZV(I),QS(I)
+      WRITE(ISOL,410)
+      DO 430 I=1,NTS
+         L=ISPHE(I)
+  430 WRITE(ISOL,60)L,I,XV(I),YV(I),ZV(I),QS(I)
 C     END IF
 C     IF(IFIELD.EQ.0)GOTO 700
 C     REACTION FIEL ON POINTS FROM CARD.
@@ -2890,123 +3881,132 @@ C     CEI=DSQRT(CEX**2+CEY**2+CEZ**2)
 C     CDX=CEX/CEI
 C     CDY=CEY/CEI
 C     CDZ=CEZ/CEI
-C     WRITE(IOUT,6070)XE1,YE1,ZE1,CEX,CEY,CEZ,CEI,CDX,CDY,CDZ
-C     WRITE(IOUT,6100)PTZ
 C6070 FORMAT(///,' SITE ',3F10.5,/,'   REACTION FIELD COMPONENTS '
 C    *,3F7.3,' INTENSITY ',F10.5,' DIRECTION COSINES ',3F7.3)
 C6100 FORMAT(/,'   REACTION POTENTIAL',F10.7)
 C     RETURN
-C     CAMPO E. DI REAZIONE SUI NUCLEI.
-  700 PTZ=ZERO
-      WRITE(17,6200)
-      DO 590 I=1,NATOMS
-      IF(IAN(I).EQ.0)GOTO 590
-      CEX=ZERO
-      CEY=ZERO
-      CEZ=ZERO
-      DO 600 J=1,NTS
-      XU=XV(J)-C(I,1)
-      YU=YV(J)-C(I,2)
-      ZU=ZV(J)-C(I,3)
-      R1=DSQRT((XU**2+YU**2+ZU**2)**3)
-      R2=DSQRT(XU**2+YU**2+ZU**2)
-      CEX=CEX+QS(J)*XU/R1
-      CEY=CEY+QS(J)*YU/R1
-      CEZ=CEZ+QS(J)*ZU/R1
-      PTZ=PTZ+QS(I)/R2
-  600 CONTINUE
-      CEI=DSQRT(CEX**2+CEY**2+CEZ**2)
-      CDX=CEX/CEI
-      CDY=CEY/CEI
-      CDZ=CEZ/CEI
-      WRITE(17,6300)I,IAN(I),CEX,CEY,CEZ,CEI
-C     WRITE(IOUT,6070)C(I,1),C(I,2),C(I,3),CEX,CEY,CEZ,CEI,CDX,CDY,CDZ
-C     WRITE(IOUT,6100)PTZ
- 6200 FORMAT(//,' CAMPO ELETTRICO DI REAZIONE SUI NUCLEI ',/,
-     *'CENTRO/NUM.ATOM.           COMPONENTI (X,Y,Z) (A.U)     ',
-     *'  MODULO  (A.U.)')
- 6300 FORMAT(2I5,4F15.6)
-  590 CONTINUE
+C     REACTION FIELD ON NUCLEI        
+  440 PTZ=ZERO
+      WRITE(ISOL,460)
+      DO 480 I=1,NATOMS
+         IF(IAN(I).EQ.0)GOTO 480
+         CEX=ZERO
+         CEY=ZERO
+         CEZ=ZERO
+         DO 450 J=1,NTS
+            XU=XV(J)-C(I,1)
+            YU=YV(J)-C(I,2)
+            ZU=ZV(J)-C(I,3)
+            R1=DSQRT((XU**2+YU**2+ZU**2)**3)
+            R2=DSQRT(XU**2+YU**2+ZU**2)
+            CEX=CEX+QS(J)*XU/R1
+            CEY=CEY+QS(J)*YU/R1
+            CEZ=CEZ+QS(J)*ZU/R1
+            PTZ=PTZ+QS(I)/R2
+  450    CONTINUE
+         CEI=DSQRT(CEX**2+CEY**2+CEZ**2)
+         CDX=CEX/CEI
+         CDY=CEY/CEI
+         CDZ=CEZ/CEI
+         WRITE(ISOL,470)I,IAN(I),CEX,CEY,CEZ,CEI
+  460 FORMAT(//,' REACTION ELECTRIC FIELD ON NUCLEI      ',/,       
+     *'CENTER/NUM.ATOM.           COMPONENTS (X,Y,Z) (A.U)     ',  
+     *'  MODULUS (A.U.)')                                         
+  470    FORMAT(2I5,4F15.6)
+  480 CONTINUE
 C
 C     CHANGE VALUE OF PARAMETER MFLAG
 C
       IF(MFLAG.EQ.0) MFLAG=1
       RETURN
       END
-      LOGICAL FUNCTION COLLI1(CW,RW,CNBR,RNBR,MNBR,NNBR,ISHAPE,
-     1JNBR,KNBR)
+      SUBROUTINE RPOL1(N,X,TP2,WP2)
+C
+C     --------------------------
+C     GAUSSIAN 76 (QCPE VERSION)
+C     DECEMBER 1977
+C     CONTROL DATA 7600
+C     --------------------------
+C
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-C     IMPLICIT REAL*8 (A-H,O-Z)
+      DIMENSION TP2(*),WP2(*)
 C
-C     ----- COLLISION CHECK OF PROBE WITH NEIGHBORING ATOMS ---
+C     GIVEN N (ORDER OF THE RYS POLYNOMIAL) AND X (THE ARGUMENT TO
+C     THE F(M,T) ROUTINE), THIS ROUTINE USES COMMON/T2W2/ TO INTER-
+C     POLATE THE ROOTS AND WEIGHTS OF THE RYS POLYNOMIAL.
 C
-      DIMENSION CW(3)
-      DIMENSION CNBR(3,200)
-      DIMENSION RNBR(200)
-      LOGICAL MNBR(200)
-      IF (NNBR .LE. 0) GO TO 200
+      COMMON/T2W21E/LENT(4),LIND(4),IADR(4),S(4),YCUT(4),T2(1030),W2(103
+     10)
+      COMMON/HERM1E/HROOT2(10),HWEIGH(10)
+      COMMON/INTCON/F6I,F20I,F100
+      COMMON/INTK/ZERO,XINT(12)
+      EQUIVALENCE(ONE,XINT(1)),(FOUR,XINT(4))
+      COMMON/MTPC/  ATHETA,BTHETA,APHI,BPHI,CM1,C0,C1,C2,M
+      EQUIVALENCE(TH2,PH2,BT2,Y100)
+C**   DATA F100/100.0E0/
+      F100=100.
+C     GIVEN X, COMPUTE Y.
+      SX=S(N)*X
+      Y=SX/(1.D0+SX)
 C
-C     ---- CHECK WHETHER PROBE IS TOO CLOSE TO ANY NEIGHBOR ----
+C     TEST FOR POSSIBLE USE OF LARGE X FORMULA.
+      IF(Y-YCUT(N))10,30,30
 C
-      DO 100 I = 1, NNBR
-      IF (ISHAPE .GT. 1 .AND. I .EQ. JNBR) GO TO 100
-      IF (ISHAPE .EQ. 3 .AND. (I .EQ. KNBR .OR. .NOT. MNBR(I)))
-     1GO TO 100
-      SUMRAD = RW + RNBR(I)
-      VECT1 = ABS(CW(1) - CNBR(1,I))
-      IF (VECT1 .GE. SUMRAD) GO TO 100
-      VECT2 = ABS(CW(2) - CNBR(2,I))
-      IF (VECT2 .GE. SUMRAD) GO TO 100
-      VECT3 = ABS(CW(3) - CNBR(3,I))
-      IF (VECT3 .GE. SUMRAD) GO TO 100
-      SR2 = SUMRAD ** 2
-
-      DD2 = VECT1 ** 2 + VECT2 ** 2 + VECT3 ** 2
-      IF (DD2 .LT. SR2) GO TO 300
-100   CONTINUE
-200   CONTINUE
-      COLLI1 = .FALSE.
-      GO TO 400
-300   CONTINUE
-      COLLI1 = .TRUE.
-400   CONTINUE
+C     MAP ONTO 100.
+   10 Y100=F100*Y
+      M=INT(Y100)
+      THETA=Y100- FLOAT(M)
+      PHI=1.D0-THETA
+C
+C     COMPUTE POLYNOMIALS IN THETA AND PHI.
+      TH2=THETA*THETA
+      ATHETA=THETA*(TH2-1.D0)*F6I
+      BTHETA=ATHETA*(TH2-FOUR)*F20I
+      PH2=PHI*PHI
+      APHI=PHI*(PH2-1.D0)*F6I
+      BPHI=APHI*(PH2-FOUR)*F20I
+C
+C     COMPUTE INTERPOLATION COEFFICIENTS.
+      AT2=ATHETA+ATHETA
+      BT2=BTHETA+BTHETA
+      BT3=BT2+BTHETA
+      BT4=BT3+BTHETA
+      AP2=APHI+APHI
+      BP2=BPHI+BPHI
+      BP3=BP2+BPHI
+      BP4=BP3+BPHI
+      CM1=BTHETA-BP4+APHI
+      C0=PHI-BT4+(BP3+BP3)+ATHETA-AP2
+      C1=THETA+(BT3+BT3)-BP4-AT2+APHI
+      C2=BPHI+ATHETA-BT4
+C
+C     ALL REQUIRED INFORMATION IS NOW READY.  PERFORM INTERPOLATION.
+C     THIS STEP CREATES N ROOTS (SQUARED) AND N WEIGHTS.
+      IAD=IADR(N)
+      DO 20 I=1,N
+         TP2(I)=DINTRP(T2(IAD))
+         WP2(I)=DINTRP(W2(IAD))
+         WP2(I)= SQRT(WP2(I))
+   20 IAD=IAD+LENT(N)
       RETURN
-      END
-      SUBROUTINE GENUNT(U,N)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-C     IMPLICIT REAL*8 (A-H,O-Z)
 C
-C     ---- GENERATE UNIT VECTORS OVER SPHERE ----
 C
-      DIMENSION U(3,N)
-      NEQUAT = SQRT(N * 3.14159)
-      NVERT = 0.5 * NEQUAT
-      NU = 0
-      DO 200 I = 1,NVERT+1
-      FI = (3.14159 * (I-1)) / NVERT
-      Z = COS(FI)
-      XY = SIN(FI)
-      NHOR = NEQUAT * XY
-      IF (NHOR .LT. 1) NHOR = 1
-      DO 100 J = 1,NHOR
-      FJ = (2 * 3.14159 * (J-1)) / NHOR
-      X = COS(FJ) * XY
-      Y = SIN(FJ) * XY
-      IF (NU .GE. N) GO TO 300
-      NU = NU + 1
-      U(1,NU) = X
-      U(2,NU) = Y
-      U(3,NU) = Z
-100   CONTINUE
-200   CONTINUE
-300   CONTINUE
-      N = NU
+C     COMPUTE RYS ROOTS AND WEIGHTS FOR LARGE X BY A HERMITE POLYNOMIAL
+C     APPROXIMATION.
+C     HROOT2 CONTAINS THE SQUARES OF THE ZEROES OF THE FIRST SEVEN
+C     EVEN HERMITE POLYNOMIALS.
+C     HWEIGH CONTAINS THE CORRESPONDING WEIGHTS (NOT SQUARED).
+   30 XI=1.D0/X
+      XROOTI= SQRT(XI)
+      DO 40 I=1,N
+         IAD=LIND(N)+I
+         TP2(I)=HROOT2(IAD)*XI
+   40 WP2(I)=HWEIGH(IAD)*XROOTI
       RETURN
       END
       SUBROUTINE SURFAT(SCALE,DENS,IT345,VWXYZ)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       INCLUDE 'SIZES'
-C     IMPLICIT REAL*8 (A-H,O-Z)
 C
 C THIS PROGRAM CALCULATES THE MOLECULAR SURFACE OF A MOLECULE
 C GIVEN THE COORDINATES OF ITS ATOMS.  VAN DER WAALS RADII FOR
@@ -3028,8 +4028,12 @@ C    *           ,IYON(1250),IVIC(3750)
 C
       COMMON/RADIUS/RTYPE(30),VANDER(30),DEN,RW,NTYPE,ITYPE(30),NATOM
       COMMON/IO/IN,IOUT,IPUNCH
+      COMMON /JOBNAM/ JOBNAM
+      COMMON /FUNCON/ FPC(2,10),IFPC
+      COMMON /CHANEL/ IFILES(30)
       COMMON C(NUMATM,3),NATOMS,ICHARG,MULTIP,IAN(NUMATM),NAE,NBE,NE,
      1NBASIS
+      CHARACTER  JOBNAM*80 
       DIMENSION VWXYZ(3,3600)
       DIMENSION CO(3,10001),RAD(10001),WATER(3,500),CON(3,500)
       DIMENSION CIRCLE(3,100),SCO(3,100),EAT(3,100),ARC(3,50,2)
@@ -3081,17 +4085,19 @@ C
 C
 C     ----- LOGICAL VARIABLES ----
 C
-      LOGICAL INT,BOTH,PAIR(2),AYON(50),SI,SJ,SK,FOUND,ANYON
+      LOGICAL INT,BOTH,PAIR(2),AYON(50),SI,SJ,SK,ANYON
 C
 C     ----- ORSR FOR NON-SYMMETRY-RELATED PROBES ----
 C
       DIMENSION YONWAT(3,1250),YONALT(3,1250)
       DIMENSION VICWAT(3,3750),VICALT(3,3750)
+      CHARACTER*4 IELDAT,MARKER, MARKSS, MYNAM,NAMATM
 C
 C     ----- THE INPUT DATA ARE NO LONGER NEEDED WHEN ORSR IS BEGUN ----
 C
       EQUIVALENCE (CO(1,1),YONWAT),(CO(1,1251),YONALT)
       EQUIVALENCE (CO(1,2501),VICWAT),(CO(1,6251),VICALT)
+      EQUIVALENCE(ISUR,IFILES(3))
 C
 C     ----- LOGICAL FUNCTIONS ----
 C
@@ -3101,20 +4107,20 @@ C     ----- DATA FOR VANDER VALL RADII ----
 C
 C     DATA VANDER/1.20,1.20,1.37,1.45,1.45,1.50,1.50,1.40,1.35,1.30
 C    *           ,1.57,1.36,1.24,1.17,1.80,1.75,1.70,13*0/
-      DATA MARKER/3HA   /,MARKSS/3HSS0/,MYNAM/3HUC /
-      DATA BOHR /0.5291775D0/
+      DATA MARKER/'A   '/,MARKSS/'SS0 '/,MYNAM/'UC '/
 C
-      DATA IELDAT/4H  BQ,4H  H ,4H  HE,4H  LI,4H  BE,4H  B ,
-     $            4H  C ,4H  N ,4H  O ,4H  F ,4H  NE,4H  NA,
-     $            4H  MG,4H  AL,4H  SI,4H  P ,4H  S ,4H  CL,
-     $            4H  AR,4H  K ,4H  CA,4H  SC,4H  TI,4H  V ,
-     $            4H  CR,4H  MN,4H  FE,4H  CO,4H  NI,4H  CU,
-     $            4H  ZN,4H  GA,4H  GE,4H  AS,4H  SE,4H  BR,
-     $            4H  KR,4H  RB,4H  SR,4H   Y,4H  ZR,4H  NB,
-     $            4H  MO,4H  TC,4H  RU,4H  RH,4H  PD,4H  AG,
-     $            4H  CD,4H  IN,4H  SN,4H  SB,4H  TE,4H   I,
-     $            4H   X,4H  CS/
+      DATA IELDAT/'  BQ','  H ','  HE','  LI','  BE','  B ',
+     1            '  C ','  N ','  O ','  F ','  NE','  NA',
+     2            '  MG','  AL','  SI','  P ','  S ','  CL',
+     3            '  AR','  K ','  CA','  SC','  TI','  V ',
+     4            '  CR','  MN','  FE','  CO','  NI','  CU',
+     5            '  ZN','  GA','  GE','  AS','  SE','  BR',
+     6            '  KR','  RB','  SR','   Y','  ZR','  NB',
+     7            '  MO','  TC','  RU','  RH','  PD','  AG',
+     8            '  CD','  IN','  SN','  SB','  TE','   I',
+     9            '   X','  CS'/
 C
+      BOHR=FPC(IFPC,3)
       VANDER(1)=1.20
       VANDER(2)=1.20
       VANDER(3)=1.37
@@ -3145,9 +4151,12 @@ C
       VANDER(28)=0.00
       VANDER(29)=0.00
       VANDER(30)=0.00
- 1001 FORMAT(A3,I5,1X,A3,3F9.3,1X,A3,F7.3)
+   10 FORMAT(A3,I5,1X,A3,3F9.3,1X,A3,F7.3)
 C1010 FORMAT(I3,9X,A5,6X,3F12.4)
- 1010 FORMAT(A5,6X,3F12.4)
+   20 FORMAT(A5,6X,3F12.4)
+      I=INDEX(JOBNAM,' ')-1
+      OPEN(UNIT=ISUR,FILE=JOBNAM(:I)//'.sur',STATUS='UNKNOWN')
+      REWIND ISUR
 C
 C     ----- BRANCH TO THE PROPER GENERATION ----
 C
@@ -3158,14 +4167,14 @@ C
       NATOM =NATOMS
       DEN = DENS
       DO 30 I=1,NATOM
-      IPOINT =IAN(I)
-      RAD(I) =VANDER(IPOINT)*SCALE
-      IAS(I) =2
-      DO 30 J=1,3
-      DUMM = C(I,J)*AUTOAN
-      CO(J,I) = DUMM
+         IPOINT =IAN(I)
+         RAD(I) =VANDER(IPOINT)*SCALE
+         IAS(I) =2
+         DO 30 J=1,3
+            DUMM = C(I,J)*AUTOAN
+            CO(J,I) = DUMM
    30 CONTINUE
-180   CONTINUE
+   40 CONTINUE
 C     IF (RW .EQ. 0.0) GO TO 200
 C
 C
@@ -3183,16 +4192,16 @@ C     FI = (2 * 3.14159 * (I-1))/NCIRC
 C     CIRCLE(1,I) = RW * COS(FI)
 C     CIRCLE(2,I) = RW * SIN(FI)
 C     CIRCLE(3,I) = 0.0
-190   CONTINUE
+   50 CONTINUE
 C
 C     ----- OPEN BEFORE FILE FOR WRITING ----
 C
-c     OPEN(3,FILE='BEFORE',STATUS='UNKNOWN')
-c     REWIND(3)
+C     OPEN(3,FILE='BEFORE',STATUS='UNKNOWN')
+C     REWIND(3)
 C
 C     ---- SKIP TO HERE IF NO REENTRANT SURFACE WILL BE CALCULATED ---
 C
- 200   CONTINUE
+   60 CONTINUE
 C
 C     ----- OPEN CONTACT FILE FOR WRITING ----
 C
@@ -3202,79 +4211,79 @@ C
 C
 C     ----- BIG LOOP FOR EACH ATOM ----
 C
-      DO 700 IATOM = 1, NATOM
-      IF (IAS(IATOM) .EQ. 0) GO TO 700
+      DO 520 IATOM = 1, NATOM
+         IF (IAS(IATOM) .EQ. 0) GO TO 520
 C
 C     ----- TRANSFER VALUES FROM LARGE ARRAYS TO IATOM VARIABLES ----
 C
-      NAMATM =IELDAT(IAN(IATOM)+1)
-      RI = RAD(IATOM)
-      SI = IAS(IATOM) .EQ. 2
-      DO 210 K = 1,3
-      CI(K) = CO(K,IATOM)
-210   CONTINUE
+         NAMATM =IELDAT(IAN(IATOM)+1)
+         RI = RAD(IATOM)
+         SI = IAS(IATOM) .EQ. 2
+         DO 70 K = 1,3
+            CI(K) = CO(K,IATOM)
+   70    CONTINUE
 C
 C     ----- GATHER THE NEIGHBORING ATOMS OF IATOM ----
 C
-      NNBR = 0
-      DO 230 JATOM = 1, NATOM
-      IF (IATOM .EQ. JATOM .OR. IAS(JATOM) .EQ. 0) GO TO 230
-      D2 = DIST2(CI,CO(1,JATOM))
-      IF (D2 .GE. (2*RW+RI+RAD(JATOM)) ** 2) GO TO 230
+         NNBR = 0
+         DO 90 JATOM = 1, NATOM
+            IF (IATOM .EQ. JATOM .OR. IAS(JATOM) .EQ. 0) GO TO 90
+            D2 = DIST2(CI,CO(1,JATOM))
+            IF (D2 .GE. (2*RW+RI+RAD(JATOM)) ** 2) GO TO 90
 C
 C     ----- WE HAVE A NEW NEIGHBOR ----
 C     ---- TRANSFER ATOM COORDINATES, RADIUS AND SURFACE REQUEST NUMBER
 C
-      NNBR = NNBR + 1
-      IF (NNBR .GT. 200) CALL ERROR(210,NNBR,0.0)
-      INBR(NNBR) = JATOM
-      DO 220 K = 1,3
-      CNBR(K,NNBR) = CO(K,JATOM)
-220   CONTINUE
-      RNBR(NNBR) = RAD(JATOM)
-      SNBR(NNBR) = IAS(JATOM) .EQ. 2
-230   CONTINUE
+            NNBR = NNBR + 1
+            IF (NNBR .GT. 200) CALL ERROR(210,NNBR,0.0d0)
+            INBR(NNBR) = JATOM
+            DO 80 K = 1,3
+               CNBR(K,NNBR) = CO(K,JATOM)
+   80       CONTINUE
+            RNBR(NNBR) = RAD(JATOM)
+            SNBR(NNBR) = IAS(JATOM) .EQ. 2
+   90    CONTINUE
 C
 C     ----- NO REENTRANT SURFACE WILL BE CALCULATED IF WE ARE
 C     CALCULATING THE VAN DER WAALS SURFACE
 C     INSTEAD OF THE MOLECULAR SURFACE ----
 C
-      IF (RW .EQ. 0.0) GO TO 610
+         IF (RW .EQ. 0.0) GO TO 460
 C
 C     ----- MEDIUM LOOP FOR EACH NEIGHBOR OF IATOM ----
 C
-      DO 600 JNBR = 1,NNBR
-      JATOM = INBR(JNBR)
+         DO 450 JNBR = 1,NNBR
+            JATOM = INBR(JNBR)
 C
 C     ----- EACH PAIR OF ATOMS IS CONSIDERED ONLY ONCE ----
 C
-      IF (JATOM .LE. IATOM) GO TO 600
+            IF (JATOM .LE. IATOM) GO TO 450
 C
 C     ----- TRANFER FROM NEIGHBOR ARRAY TO JATOM VARIABLES ----
 C
-      RJ = RNBR(JNBR)
-      SJ = SNBR(JNBR)
-      DO 240 K = 1,3
-      CJ(K) = CNBR(K,JNBR)
-240   CONTINUE
+            RJ = RNBR(JNBR)
+            SJ = SNBR(JNBR)
+            DO 100 K = 1,3
+               CJ(K) = CNBR(K,JNBR)
+  100       CONTINUE
 C
 C     ----- CALCULATE THE CIRCLE-CIRCLE INTERSECTION
 C     OF THE EXPANDED SPHERES OF THE TWO ATOMS ----
 C
-      DO 250 K = 1,3
-      UIJ(K) = CJ(K) - CI(K)
-250   CONTINUE
-      CALL VNORM(UIJ,UIJ)
-      CALL VPERP(UIJ,PIJ)
+            DO 110 K = 1,3
+               UIJ(K) = CJ(K) - CI(K)
+  110       CONTINUE
+            CALL VNORM(UIJ,UIJ)
+            CALL VPERP(UIJ,PIJ)
 C
 C     ----- CALL CIRCLE-CIRCLE INTERSECTION SUBROUTINE ----
 C
-      CALL CCI(CI,CJ,RI+RW,RJ+RW,PIJ,BASE,ALT,INT)
+            CALL CCI(CI,CJ,RI+RW,RJ+RW,PIJ,BASE,ALT,INT)
 C
 C     ----- SKIP TO BOTTOM OF MIDDLE LOOP IF NO INTERSECTION ----
 C
-      IF (.NOT. INT) GO TO 600
-      HEIGHT = ANORM(ALT)
+            IF (.NOT. INT) GO TO 450
+            HEIGHT = ANORM(ALT)
 C
 C      FOR BOTH SADDLE-SHAPED AND CONCAVE REENTRANT SURFACE
 C     WE ARE WORKING WITH A PLANE PASSING THROUGH THE CIRCLE
@@ -3288,27 +4297,27 @@ C
 C     ----- CONCAVE REENTRANT SURFACE ----
 C     ---- GATHER MUTUAL NEIGHBORS OF IATOM AND JATOM ---
 C
-      DO 260 KNBR = 1, NNBR
-      D2 = DIST2(CJ,CNBR(1,KNBR))
-      MNBR(KNBR) = D2 .LT. (2*RW+RJ+RNBR(KNBR))**2
+            DO 120 KNBR = 1, NNBR
+               D2 = DIST2(CJ,CNBR(1,KNBR))
+               MNBR(KNBR) = D2 .LT. (2*RW+RJ+RNBR(KNBR))**2
      1.AND. KNBR .NE. JNBR
-260   CONTINUE
+  120       CONTINUE
 C
 C     ---- SMALL LOOP FOR EACH MUTUAL NEIGHBOR OF IATOM AND JATOM ----
 C
-      DO 400 KNBR = 1,NNBR
-      IF (.NOT. MNBR(KNBR)) GO TO 400
-      KATOM = INBR(KNBR)
-      IF (KATOM .LE. JATOM) GO TO 400
-      SK = SNBR(KNBR)
-      IF (.NOT. (SI .OR. SJ .OR. SK)) GO TO 400
+            DO 280 KNBR = 1,NNBR
+               IF (.NOT. MNBR(KNBR)) GO TO 280
+               KATOM = INBR(KNBR)
+               IF (KATOM .LE. JATOM) GO TO 280
+               SK = SNBR(KNBR)
+               IF (.NOT. (SI .OR. SJ .OR. SK)) GO TO 280
 C
 C     ---- TRANFER FROM NEIGHBOR ARRAY TO KATOM VARIABLES ----
 C
-      RK = RNBR(KNBR)
-      DO 270 K = 1,3
-      CK(K) = CNBR(K,KNBR)
-270   CONTINUE
+               RK = RNBR(KNBR)
+               DO 130 K = 1,3
+                  CK(K) = CNBR(K,KNBR)
+  130          CONTINUE
 C
 C     GEOMETRIC CALCULATIONS FOR PLACING A PROBE NEXT TO THREE ATOMS
 C     WE ARE WORKING WITH A PLANE PASSING THROUGH THE THREE ATOMS
@@ -3321,356 +4330,362 @@ C
 C     ---- PROJECTION OF VECTOR FROM BASE TO KATOM CENTER ONTO AXIS ---
 C
 C
-      PBK = UIJ(1) * (CK(1)-BASE(1)) + UIJ(2) * (CK(2)-BASE(2)) +
-     1UIJ(3) * (CK(3)-BASE(3))
+               PBK = UIJ(1) * (CK(1)-BASE(1)) + UIJ(2) * (CK(2)-BASE(2))
+     1 +UIJ(3) * (CK(3)-BASE(3))
 C
 C     ----- RADIUS OF CIRCLE OF INTERSECTION OF EXPANDEDED KATOM
 C     WITH PLANE ----
 C
-      RCK = (RK+RW) ** 2 - PBK ** 2
-      IF (RCK .LE. 0.0) GO TO 400
-      RCK = SQRT(RCK)
-      DO 280 K = 1,3
-      CCK(K) = CK(K) - PBK * UIJ(K)
-280   CONTINUE
+               RCK = (RK+RW) ** 2 - PBK ** 2
+               IF (RCK .LE. 0.0) GO TO 280
+               RCK = SQRT(RCK)
+               DO 140 K = 1,3
+                  CCK(K) = CK(K) - PBK * UIJ(K)
+  140          CONTINUE
 C
 C     ----- CALL CIRCLE-CIRCLE INTERSECTION SUBROUTINE ----
 C
-      CALL CCI(CCK,BASE,RCK,HEIGHT,UIJ,BASE2,ALT2(1,1),INT)
-      IF (.NOT. INT) GO TO 400
+               CALL CCI(CCK,BASE,RCK,HEIGHT,UIJ,BASE2,ALT2(1,1),INT)
+               IF (.NOT. INT) GO TO 280
 C
 C     ----- SKIP TO BOTTOM OF INNER LOOP IF NO INTERSECTION ----
 C
 C     ---- PROBE PLACEMENT AT ENDS OF ALTITUDE VECTORS ----
 C
-      DO 290 K = 1,3
-      ALT2(K,2) = - ALT2(K,1)
-290   CONTINUE
-      DO 310 IW = 1,2
-      DO 300 K = 1,3
-      CW(K,IW) = BASE2(K) + ALT2(K,IW)
-300   CONTINUE
+               DO 150 K = 1,3
+                  ALT2(K,2) = - ALT2(K,1)
+  150          CONTINUE
+               DO 170 IW = 1,2
+                  DO 160 K = 1,3
+                     CW(K,IW) = BASE2(K) + ALT2(K,IW)
+  160             CONTINUE
 C
 C     ----- COLLISION CHECK WITH MUTUAL NEIGHBORS ----
 C
-      PAIR(IW) = .NOT. COLLI1(CW(1,IW),RW,CNBR,RNBR,MNBR,NNBR,
-     13,JNBR,KNBR)
-310   CONTINUE
+                  PAIR(IW) = .NOT. COLLI1(CW(1,IW),RW,CNBR,RNBR,MNBR,NNB
+     1R,3,JNBR,KNBR)
+  170          CONTINUE
 C
 C     ----- IF NEITHER PROBE POSITION IS ALLOWED, SKIP TO BOTTOM
 C     OF INNER LOOP ----
 C
-      IF (.NOT. PAIR(1) .AND. .NOT. PAIR(2)) GO TO 400
-      BOTH = PAIR(1) .AND. PAIR(2)
+               IF (.NOT. PAIR(1) .AND. .NOT. PAIR(2)) GO TO 280
+               BOTH = PAIR(1) .AND. PAIR(2)
 C
 C     ----- GENERATE SURFACE POINTS ----
 C
-      AREA = (4 * 3.14159 * RW ** 2)/NWATER
-      DO 390 IW = 1,2
-      IF (.NOT. PAIR(IW)) GO TO 390
+               AREA = (4 * 3.14159 * RW ** 2)/NWATER
+               DO 270 IW = 1,2
+                  IF (.NOT. PAIR(IW)) GO TO 270
 C
 C     ----- CALCULATE VECTORS DEFINING SPHERICAL TRIANGLE ----
 C
-      DO 320 K = 1,3
-      WI(K) = CI(K) - CW(K,IW)
-      WJ(K) = CJ(K) - CW(K,IW)
-      WK(K) = CK(K) - CW(K,IW)
-320   CONTINUE
-      SIGN = DET(WI,WJ,WK)
-      NP = 1
+                  DO 180 K = 1,3
+                     WI(K) = CI(K) - CW(K,IW)
+                     WJ(K) = CJ(K) - CW(K,IW)
+                     WK(K) = CK(K) - CW(K,IW)
+  180             CONTINUE
+                  SIGN = DET(WI,WJ,WK)
+                  NP = 1
 C
 C     ----- GATHER POINTS ON PROBE SPHERE LYING WITHIN TRIANGLE ----
 C
-      DO 370 I = 1,NWATER
-      IF (SIGN * DET(WATER(1,I),WJ,WK) .LT. 0.0) GO TO 370
-      IF (SIGN * DET(WI,WATER(1,I),WK) .LT. 0.0) GO TO 370
-      IF (SIGN * DET(WI,WJ,WATER(1,I)) .LT. 0.0) GO TO 370
-      IF (NP .GT. 100) CALL ERROR(220,NP,0.0)
+                  DO 230 I = 1,NWATER
+                     IF (SIGN * DET(WATER(1,I),WJ,WK) .LT. 0.0) GO TO 23
+     10
+                     IF (SIGN * DET(WI,WATER(1,I),WK) .LT. 0.0) GO TO 23
+     10
+                     IF (SIGN * DET(WI,WJ,WATER(1,I)) .LT. 0.0) GO TO 23
+     10
+                     IF (NP .GT. 100) CALL ERROR(220,NP,0.0d0)
 C
 C     ----- CALCULATED WHETHER POINT IS ON YON SIDE OF PLANE ----
 C
-      YON(NP) = ALT2(1,IW) * (ALT2(1,IW) + WATER(1,I)) +
+                     YON(NP) = ALT2(1,IW) * (ALT2(1,IW) + WATER(1,I)) +
      1ALT2(2,IW) * (ALT2(2,IW) + WATER(2,I)) +
-     1ALT2(3,IW) * (ALT2(3,IW) + WATER(3,I)) .LT. 0.0
+     2ALT2(3,IW) * (ALT2(3,IW) + WATER(3,I)) .LT. 0.0
 C
 C     ----- OVERLAPPING REENTRANT SURFACE REMOVAL
 C     FOR SYMMETRY-RELATED PROBE POSITIONS ----
 C
-      IF (YON(NP) .AND. BOTH) GO TO 370
-      DO 330 K = 1,3
-      SCO(K,NP) = CW(K,IW) + WATER(K,I) * RW
-330   CONTINUE
+                     IF (YON(NP) .AND. BOTH) GO TO 230
+                     DO 190 K = 1,3
+                        SCO(K,NP) = CW(K,IW) + WATER(K,I) * RW
+  190                CONTINUE
 C
 C     ----- FIND THE CLOSEST ATOM ----
 C
-      DI = DIST(SCO(1,NP),CI) - RI
-      DJ = DIST(SCO(1,NP),CJ) - RJ
-      DK = DIST(SCO(1,NP),CK) - RK
-      IF (DI .LE. DJ .AND. DI .LE. DK) GO TO 340
-      IF (DJ .LE. DI .AND. DJ .LE. DK) GO TO 350
-      IF (.NOT. SK) GO TO 370
-      N1(NP) = KATOM
-      N2(NP) = IATOM
-      N3(NP) = JATOM
-      GO TO 360
-340   CONTINUE
-      IF (.NOT. SI) GO TO 370
-      N1(NP) = IATOM
-      N2(NP) = JATOM
-      N3(NP) = KATOM
-      GO TO 360
-350   CONTINUE
-      IF (.NOT. SJ) GO TO 370
-      N1(NP) = JATOM
-      N2(NP) = IATOM
-      N3(NP) = KATOM
-360   CONTINUE
-      NP = NP + 1
+                     DI = DIST(SCO(1,NP),CI) - RI
+                     DJ = DIST(SCO(1,NP),CJ) - RJ
+                     DK = DIST(SCO(1,NP),CK) - RK
+                     IF (DI .LE. DJ .AND. DI .LE. DK) GO TO 200
+                     IF (DJ .LE. DI .AND. DJ .LE. DK) GO TO 210
+                     IF (.NOT. SK) GO TO 230
+                     N1(NP) = KATOM
+                     N2(NP) = IATOM
+                     N3(NP) = JATOM
+                     GO TO 220
+  200                CONTINUE
+                     IF (.NOT. SI) GO TO 230
+                     N1(NP) = IATOM
+                     N2(NP) = JATOM
+                     N3(NP) = KATOM
+                     GO TO 220
+  210                CONTINUE
+                     IF (.NOT. SJ) GO TO 230
+                     N1(NP) = JATOM
+                     N2(NP) = IATOM
+                     N3(NP) = KATOM
+  220                CONTINUE
+                     NP = NP + 1
 C
 C     ----- END OF NWATER LOOP ----
 C
-370   CONTINUE
-      NP = NP - 1
-      IF (NP .LE. 0) GO TO 390
+  230             CONTINUE
+                  NP = NP - 1
+                  IF (NP .LE. 0) GO TO 270
 C
 C     ----- WRITE THE SHAPE, NUMBER OF POINTS, PROBE POSITION AND
 C     THE VECTOR FROM THE BASE TO THE PROBE CENTER ----
 C
-      WRITE (3,375) 3,NP,(CW(K,IW),K=1,3),(ALT2(K,IW),K=1,3)
-375   FORMAT(2I5,6F9.3)
+                  WRITE(ISUR,240)3,NP,(CW(K,IW),K=1,3),
+     1(ALT2(K,IW),K=1,3)
+  240             FORMAT(2I5,6F9.3)
 C
 C     ----- WRITE SURFACE POINTS FOR THIS PROBE POSITION ----
 C
-      DO 385 I = 1,NP
-      WRITE (3,380) N1(I),N2(I),N3(I),(SCO(K,I),K=1,3),AREA,YON(I)
-380   FORMAT(3I5,3F9.3,F7.3,L5)
-385   CONTINUE
+                  DO 260 I = 1,NP
+                     WRITE(ISUR,250) N1(I),N2(I),N3(I),(SCO(K,I),K=1,3),AR
+     1EA,YON(I)
+  250                FORMAT(3I5,3F9.3,F7.3,L5)
+  260             CONTINUE
 C
 C     ----- END OF IW LOOP ----
 C
-390   CONTINUE
+  270          CONTINUE
 C
 C     ----- END OF CONCAVE REENTRANT LOOP ----
-400   CONTINUE
+  280       CONTINUE
 C
 C     ----- SADDLE-SHAPED REENTRANT ----
 C
-      IF (.NOT. (SI .OR. SJ)) GO TO 600
+            IF (.NOT. (SI .OR. SJ)) GO TO 450
 C
 C     ----- CALCULATE NUMBER OF ROTATIONS OF PROBE PAIR,
 C     ROTATION ANGLE AND ROTATION MATRIX ----
 C
-      RIJ = (RI + RJ) / 2
-      AVH = 0.5 * ABS(HEIGHT-RW) + 0.5 * (HEIGHT * (RIJ/(RIJ+RW)))
-      NROT = SQRT(DEN) * 3.14159 * AVH
-      IF (NROT .LT. 1) NROT = 1
-      ANGLE = 3.14159/NROT
-      CALL IMATX(H)
-      H(2,2) = COS(ANGLE)
-      H(3,3) = H(2,2)
-      H(3,2) = SIN(ANGLE)
-      H(2,3) = - H(3,2)
+            RIJ = (RI + RJ) / 2
+            AVH = 0.5 * ABS(HEIGHT-RW) + 0.5 * (HEIGHT * (RIJ/(RIJ+RW)))
+            NROT = SQRT(DEN) * 3.14159 * AVH
+            IF (NROT .LT. 1) NROT = 1
+            ANGLE = 3.14159/NROT
+            CALL IMATX(H)
+            H(2,2) = COS(ANGLE)
+            H(3,3) = H(2,2)
+            H(3,2) = SIN(ANGLE)
+            H(2,3) = - H(3,2)
 C
 C     ----- CALCULATE MATRIX TO ROTATE X-AXIS ONTO IATOM-JATOM AXIS ---
 C
-      DO 430 K = 1,3
-      G(K,1) = UIJ(K)
-      G(K,2) = ALT(K)/HEIGHT
-430   CONTINUE
-      CALL CROSS(G(1,1),G(1,2),G(1,3))
+            DO 290 K = 1,3
+               G(K,1) = UIJ(K)
+               G(K,2) = ALT(K)/HEIGHT
+  290       CONTINUE
+            CALL CROSS(G(1,1),G(1,2),G(1,3))
 C
 C     ---- MAKE THE PROBE PAIR ROTATION MATRIX BE ABOUT THE
 C     IATOM-JATOM AXIS ----
 C
-      CALL CONJ(H,G,GHGT)
+            CALL CONJ(H,G,GHGT)
 C
 C     ----- ARC GENERATION ----
 C
-      DO 440 K = 1,3
-      CW(K,1) = BASE(K) + ALT(K)
-      WI(K) = CI(K) - CW(K,1)
-      WJ(K) = CJ(K) - CW(K,1)
-440   CONTINUE
+            DO 300 K = 1,3
+               CW(K,1) = BASE(K) + ALT(K)
+               WI(K) = CI(K) - CW(K,1)
+               WJ(K) = CJ(K) - CW(K,1)
+  300       CONTINUE
 C
 C     ROTATE CIRCLE ONTO IATOM-JATOM-WATER PLANE
 C     AND SELECT POINTS BETWEEN WATER-IATOM AND
 C     WATER-JATOM VECTOR TO FORM THE ARC
 C
-      NARC = 1
-      DO 460 I = 1,NCIRC
-      IF (NARC .GT. 50) CALL ERROR(440,NARC,0.0)
-      CALL MULTV(CIRCLE(1,I),G,ARC1(1,NARC))
-      CALL CROSS(WI,ARC1(1,NARC),VECTOR)
-      IF (DOT1(G(1,3),VECTOR) .LT. 0.0) GO TO 460
-      CALL CROSS(ARC1(1,NARC),WJ,VECTOR)
-      IF (DOT1(G(1,3),VECTOR) .LT. 0.0) GO TO 460
+            NARC = 1
+            DO 330 I = 1,NCIRC
+               IF (NARC .GT. 50) CALL ERROR(440,NARC,0.0d0)
+               CALL MULTV(CIRCLE(1,I),G,ARC1(1,NARC))
+               CALL CROSS(WI,ARC1(1,NARC),VECTOR)
+               IF (DOT1(G(1,3),VECTOR) .LT. 0.0) GO TO 330
+               CALL CROSS(ARC1(1,NARC),WJ,VECTOR)
+               IF (DOT1(G(1,3),VECTOR) .LT. 0.0) GO TO 330
 C
 C     MAKE ARC POINT VECTORS ORIGINATE WITH BASE POINT
 C     RATHER THAN PROBE CENTER BECAUSE THEY WILL BE
 C     ROTATED AROUND THE IATOM-JATOM AXIS WHICH PASSES
 C     THROUGH THE BASE POINT
 C
-      DO 450 K = 1,3
-      ARC(K,NARC,1) = ARC1(K,NARC) + ALT(K)
-450   CONTINUE
+               DO 310 K = 1,3
+                  ARC(K,NARC,1) = ARC1(K,NARC) + ALT(K)
+  310          CONTINUE
 C
 C     ----- INVERT ARC THROUGH LINE OF SYMMETRY ----
 C
-      P = DOT1(UIJ,ARC(1,NARC,1))
-      DO 455 K = 1,3
-      ARC(K,NARC,2) = - ARC(K,NARC,1) + 2 * P * UIJ(K)
-455   CONTINUE
+               P = DOT1(UIJ,ARC(1,NARC,1))
+               DO 320 K = 1,3
+                  ARC(K,NARC,2) = - ARC(K,NARC,1) + 2 * P * UIJ(K)
+  320          CONTINUE
 C
 C     CHECK WHETHER THE ARC POINT CROSSES THE IATOM-JATOM AXIS
 C     AND CALCULATE THE AREA ASSOCIATED WITH THE POINT
 C
-      RA = DOT1(ALT,ARC(1,NARC,1))
-      AYON(NARC) = RA .LT. 0.0
-      RA = ABS(RA/HEIGHT)
-      ARCA(NARC) = (2*3.14159**2*RW*RA)/(NCIRC*NROT)
-      NARC = NARC + 1
-460   CONTINUE
-      NARC = NARC - 1
+               RA = DOT1(ALT,ARC(1,NARC,1))
+               AYON(NARC) = RA .LT. 0.0
+               RA = ABS(RA/HEIGHT)
+               ARCA(NARC) = (2*3.14159**2*RW*RA)/(NCIRC*NROT)
+               NARC = NARC + 1
+  330       CONTINUE
+            NARC = NARC - 1
 C
 C     ----- INITIALIZE POWER MATRIX TO IDENTITY ----
 C
-      CALL IMATX(POW)
+            CALL IMATX(POW)
 C
 C     ----- ROTATE THE PROBE PAIR AROUND THE PAIR OF ATOMS ----
 C
-      DO 580 IROT = 1,NROT
-      CALL MULTV(ALT,POW,RALT(1,1))
-      DO 470 K = 1,3
-      RALT(K,2) = - RALT(K,1)
-470   CONTINUE
-      DO 480 IW = 1,2
-      DO 475 K = 1,3
-      CW(K,IW) = BASE(K) + RALT(K,IW)
-475   CONTINUE
+            DO 440 IROT = 1,NROT
+               CALL MULTV(ALT,POW,RALT(1,1))
+               DO 340 K = 1,3
+                  RALT(K,2) = - RALT(K,1)
+  340          CONTINUE
+               DO 360 IW = 1,2
+                  DO 350 K = 1,3
+                     CW(K,IW) = BASE(K) + RALT(K,IW)
+  350             CONTINUE
 C
 C     ----- CHECK FOR COLLISIONS WITH NEIGHBORING ATOMS ----
 C
-      PAIR(IW) = .NOT. COLLI1(CW(1,IW),RW,CNBR,RNBR,MNBR,NNBR,
-     12,JNBR,KNBR)
-480   CONTINUE
+                  PAIR(IW) = .NOT. COLLI1(CW(1,IW),RW,CNBR,RNBR,MNBR,NNB
+     1R,2,JNBR,KNBR)
+  360          CONTINUE
 C
 C     ---- NO SURFACE GENERATION IF NEITHER PROBE POSITION IS ALLOWED
 C
-      IF (.NOT. PAIR(1) .AND. .NOT. PAIR(2)) GO TO 570
-      BOTH = PAIR(1) .AND. PAIR(2)
+               IF (.NOT. PAIR(1) .AND. .NOT. PAIR(2)) GO TO 430
+               BOTH = PAIR(1) .AND. PAIR(2)
 C
 C     ----- SURFACE GENERATION ----
 C
-      DO 560 IW = 1,2
-      IF (.NOT. PAIR(IW)) GO TO 560
-      NP = 1
+               DO 420 IW = 1,2
+                  IF (.NOT. PAIR(IW)) GO TO 420
+                  NP = 1
 C
 C     ---- THE SADDLE-SHAPED REENTRANT SURFACE POINTS COME FROM THE ARC
 C
-      DO 520 I = 1,NARC
+                  DO 400 I = 1,NARC
 C
 C     ----- OVERLAPPING REENTRANT SURFACE REMOVAL
 C     FOR SYMMETRY-RELATED PROBE POSITIONS ----
 C
-      IF (BOTH .AND. AYON(I)) GO TO 520
-      IF (NP .GT. 100)
-     1CALL ERROR(480,NP,0.0)
+                     IF (BOTH .AND. AYON(I)) GO TO 400
+                     IF (NP .GT. 100)
+     1CALL ERROR(480,NP,0.0d0)
 C
 C     ---- ROTATE THE ARC FROM THE XY PLANE ONTO THE
 C     IATOM-JATOM-WATER PLANE ----
 C
-      CALL MULTV(ARC(1,I,IW),POW,ARCR)
+                     CALL MULTV(ARC(1,I,IW),POW,ARCR)
 C
 C     ----- MAKE COORDINATES RELATIVE TO ORIGIN ----
 C
-      DO 490 K = 1,3
-      SCO(K,NP) = BASE(K) + ARCR(K)
-490   CONTINUE
+                     DO 370 K = 1,3
+                        SCO(K,NP) = BASE(K) + ARCR(K)
+  370                CONTINUE
 C
 C     ----- FIND THE CLOSEST ATOM ----
 C
-      DI = DIST(SCO(1,NP),CI) - RI
-      DJ = DIST(SCO(1,NP),CJ) - RJ
-      IF (DI .LE. DJ) GO TO 500
-      IF (.NOT. SJ) GO TO 520
-      N1(NP) = JATOM
-      N2(NP) = IATOM
-      GO TO 510
-500   CONTINUE
-      IF (.NOT. SI) GO TO 520
-      N1(NP) = IATOM
-      N2(NP) = JATOM
-510   CONTINUE
+                     DI = DIST(SCO(1,NP),CI) - RI
+                     DJ = DIST(SCO(1,NP),CJ) - RJ
+                     IF (DI .LE. DJ) GO TO 380
+                     IF (.NOT. SJ) GO TO 400
+                     N1(NP) = JATOM
+                     N2(NP) = IATOM
+                     GO TO 390
+  380                CONTINUE
+                     IF (.NOT. SI) GO TO 400
+                     N1(NP) = IATOM
+                     N2(NP) = JATOM
+  390                CONTINUE
 C
 C     ----- WE'VE GOT A SURFACE POINT ----
 C
-      YON(NP) = AYON(I)
-      TORUS(NP) = ARCA(I)
-      NP = NP + 1
+                     YON(NP) = AYON(I)
+                     TORUS(NP) = ARCA(I)
+                     NP = NP + 1
 C
-520   CONTINUE
-      NP = NP - 1
-      IF (NP .LE. 0) GO TO 560
+  400             CONTINUE
+                  NP = NP - 1
+                  IF (NP .LE. 0) GO TO 420
 C
 C     ----- WRITE THE SHAPE,NUMBER OF POINTS,PROBE POSITION AND
 C     THE VECTOR FROM THE BASE TO THE PROBE CENTER ----
 C
-      WRITE (3,375) 2,NP,(CW(K,IW),K=1,3),(RALT(K,IW),K=1,3)
+                  WRITE(ISUR,240) 2,NP,(CW(K,IW),K=1,3),
+     1 (RALT(K,IW),K=1,3)
 C
 C     ----- WRITE SURFACE POINTS FOR THIS PROBE POSITION ----
 C
-      DO 550 I = 1,NP
-      WRITE (3,380) N1(I),N2(I),0,(SCO(K,I),K=1,3),TORUS(I),YON(I)
+                  DO 410 I = 1,NP
+                     WRITE(ISUR,250) N1(I),N2(I),0,(SCO(K,I),K=1,3),
+     1TORUS(I),YON(I)
 C
-550   CONTINUE
+  410             CONTINUE
 C
-560   CONTINUE
-570   CONTINUE
+  420          CONTINUE
+  430          CONTINUE
 C
 C     ----- CALCULATE NEW POWER MATRIX ----
 C
-      CALL CAT(POW,GHGT)
+               CALL CAT(POW,GHGT)
 C
-580   CONTINUE
-600   CONTINUE
+  440       CONTINUE
+  450    CONTINUE
 C
 C     ----- SKIP TO HERE IF VAN DER WAALS SURFACE CALCULATION ----
 C
-610   CONTINUE
+  460    CONTINUE
 C
 C     ---- CONTACT SURFACE ----
 C
-      IF (.NOT. SI) GO TO 700
-      NCON = (4 * 3.14159 * RI ** 2) * DEN
-      IF (NCON .GT. 500) NCON = 500
+         IF (.NOT. SI) GO TO 520
+         NCON = (4 * 3.14159 * RI ** 2) * DEN
+         IF (NCON .GT. 500) NCON = 500
 C
 C     ----- THIS CALL MAY DECREASE NCON SOMEWHAT ----
 C
-      CALL GENUNT(CON,NCON)
-      AREA = (4 * 3.14159 * RI ** 2) / NCON
+         CALL GENUNT(CON,NCON)
+         AREA = (4 * 3.14159 * RI ** 2) / NCON
 C
 C     ----- CONTACT PROBE PLACEMENT LOOP ----
 C
-      DO 650 I = 1,NCON
-      DO 620 K = 1,3
-      CW(K,1) = CI(K) + (RI + RW) * CON(K,I)
-620   CONTINUE
+         DO 510 I = 1,NCON
+            DO 470 K = 1,3
+               CW(K,1) = CI(K) + (RI + RW) * CON(K,I)
+  470       CONTINUE
 C
 C     ---- CHECK FOR COLLISION WITH NEIGHBORING ATOMS ----
 C
-      IF (COLLI1(CW(1,1),RW,CNBR,RNBR,MNBR,NNBR,1,
-     1JNBR,KNBR)) GO TO 650
-640   FORMAT(3I5,I2,3F9.3,4F7.3)
-      DO 641 KK=1,3
-      TEMP0(KK) =CI(KK)+RI*CON(KK,I)
-  641 CONTINUE
-      IT345=IT345+1
-      DO 7100 K=1,3
-      VWXYZ(K,IT345)=TEMP0(K)
-7100  CONTINUE
-C     WRITE(20,1010) NAMATM,(TEMP0(K),K=1,3)
-650   CONTINUE
-700   CONTINUE
+            IF (COLLI1(CW(1,1),RW,CNBR,RNBR,MNBR,NNBR,1,
+     1JNBR,KNBR)) GO TO 510
+  480       FORMAT(3I5,I2,3F9.3,4F7.3)
+            DO 490 KK=1,3
+               TEMP0(KK) =CI(KK)+RI*CON(KK,I)
+  490       CONTINUE
+            IT345=IT345+1
+            DO 500 K=1,3
+               VWXYZ(K,IT345)=TEMP0(K)
+  500       CONTINUE
+  510    CONTINUE
+  520 CONTINUE
 C
 C     ----- IF VAN DER WAALS SURFACE WE ARE FINISHED ----
 C
@@ -3679,7 +4694,7 @@ C     CLOSE(3)
 C
 C     ----- SKIP TO HERE IF DOING ORSR ONLY ----
 C
-720   CONTINUE
+  530 CONTINUE
 C
 C     ----- OVERLAPPING REENTRANT SURFACE REMOVAL
 C     FOR NON-SYMMETRY-RELATED PROBES ----
@@ -3691,1229 +4706,217 @@ C
 C     OPEN(3,FILE='BEFORE',STATUS='OLD')
       REWIND(3)
 C
-      DO 750 I = 1,10000
-      IF (NYW .GT. 1250) CALL ERROR(720,NYW,0.0)
-      READ (3,375,END=760) ISHAPE,NP,(YONWAT(K,NYW),K=1,3),
+      DO 550 I = 1,10000
+         IF (NYW .GT. 1250) CALL ERROR(720,NYW,0.0d0)
+         READ (3,240,END=560) ISHAPE,NP,(YONWAT(K,NYW),K=1,3),
      1(YONALT(K,NYW),K=1,3)
 C
 C     ----- LOOK FOR YON POINTS ON THIS PROBE ----
 C
-      ANYON = .FALSE.
-      DO 740 J = 1,NP
-      READ (3,380) N1(1),N2(1),N3(1),(SCO(K,1),K=1,3),AREA,YON(1)
-      IF (YON(1)) ANYON = .TRUE.
- 740   CONTINUE
-      IF (.NOT. ANYON) GO TO 750
-      IYON(NYW) = I
-      NYW = NYW + 1
-750   CONTINUE
+         ANYON = .FALSE.
+         DO 540 J = 1,NP
+            READ (3,250) N1(1),N2(1),N3(1),(SCO(K,1),K=1,3),AREA,YON(1)
+            IF (YON(1)) ANYON = .TRUE.
+  540    CONTINUE
+         IF (.NOT. ANYON) GO TO 550
+         IYON(NYW) = I
+         NYW = NYW + 1
+  550 CONTINUE
 C
 C     ----- GO HERE ON END OF FILE ON BEFORE FILE ----
 C
-760   CONTINUE
+  560 CONTINUE
       NYW = NYW - 1
       NVW = 1
-      IF (NYW .LE. 0) GO TO 820
+      IF (NYW .LE. 0) GO TO 610
       REWIND(3)
-      DO 800 I = 1,10000
-      IF (NVW .GT. 3750) CALL ERROR(760,NYW,0.0)
-      READ (3,375,END=820) ISHAPE,NP,(VICWAT(K,NVW),K=1,3),
+      DO 600 I = 1,10000
+         IF (NVW .GT. 3750) CALL ERROR(760,NYW,0.0d0)
+         READ (3,240,END=610) ISHAPE,NP,(VICWAT(K,NVW),K=1,3),
      1(VICALT(K,NVW),K=1,3)
-      DO 770 J = 1,NP
-      READ (3,380) N1(1),N2(1),N3(1),(SCO(K,1),K=1,3),AREA,YON(1)
-770   CONTINUE
+         DO 570 J = 1,NP
+            READ (3,250) N1(1),N2(1),N3(1),(SCO(K,1),K=1,3),AREA,YON(1)
+  570    CONTINUE
 C
 C     ----- CHECK IF THIS IS A YON WATER ----
 C
-      DO 780 J = 1,NYW
-      IF (IYON(J) .EQ. I) GO TO 800
-780   CONTINUE
+         DO 580 J = 1,NYW
+            IF (IYON(J) .EQ. I) GO TO 600
+  580    CONTINUE
 C
 C     ----- LOOK FOR OVERLAP WITH ANY WATER WITH YON SURFACE POINTS ---
 C
-      DO 790 J = 1,NYW
-      X = ABS(YONWAT(1,J) - VICWAT(1,NVW))
-      IF (X .GE. DW) GO TO 790
-      Y = ABS(YONWAT(2,J) - VICWAT(2,NVW))
-      IF (Y .GE. DW) GO TO 790
-      Z = ABS(YONWAT(3,J) - VICWAT(3,NVW))
-      IF (Z .GE. DW) GO TO 790
-      D2 = X ** 2 + Y ** 2 + Z ** 2
-      IF (D2 .GE. DW2) GO TO 790
-      IF (DOT1(YONALT(1,J),VICALT(1,NVW)) .GE. 0.0) GO TO 790
-      IVIC(NVW) = I
-      NVW = NVW + 1
+         DO 590 J = 1,NYW
+            X = ABS(YONWAT(1,J) - VICWAT(1,NVW))
+            IF (X .GE. DW) GO TO 590
+            Y = ABS(YONWAT(2,J) - VICWAT(2,NVW))
+            IF (Y .GE. DW) GO TO 590
+            Z = ABS(YONWAT(3,J) - VICWAT(3,NVW))
+            IF (Z .GE. DW) GO TO 590
+            D2 = X ** 2 + Y ** 2 + Z ** 2
+            IF (D2 .GE. DW2) GO TO 590
+            IF (DOT1(YONALT(1,J),VICALT(1,NVW)) .GE. 0.0) GO TO 590
+            IVIC(NVW) = I
+            NVW = NVW + 1
 C
 C     ----- ONE OVERLAP MAKES THIS WATER A VICTIM
 C     WE DON'T NEED TO CHECK ANY MORE ----
 C
-      GO TO 800
-790   CONTINUE
+            GO TO 600
+  590    CONTINUE
 C
 C     ---- SKIP TO HERE IF FINISHED WITH HUNT FOR OVERLAPPING WATERS ---
 C
-800   CONTINUE
+  600 CONTINUE
 C
 C     ---- SKIP TO HERE IF THERE ARE NO YON WATERS AND HENCE NO VICTIMS
 C
-820   CONTINUE
+  610 CONTINUE
       NVW = NVW - 1
 C
 C     OPEN(40,FILE='REENTRA',STATUS='UNKNOWN')
       REWIND(4)
 C
       REWIND(3)
-      DO 950 I = 1,10000
-      READ (3,375,END=960) ISHAPE,NP,(CW(K,1),K=1,3),(ALT(K),K=1,3)
+      DO 740 I = 1,10000
+         READ (3,240,END=750) ISHAPE,NP,(CW(K,1),K=1,3),(ALT(K),K=1,3)
 C
 C     ---- NO POINTS CAN BE EATEN IF THIS WATER IS NEITHER YON
 C     NOR A VICTIM ----
 C
-      NEAT = 0
+         NEAT = 0
 C
 C     ----- DETERMINE IF PROBE IS A YON OR VICTIM WATER
 C     BY SEARCHING OUR LISTS OF YON AND VICTIM WATERS ----
 C
-      IF (NYW .LE. 0) GO TO 890
-      IPT = 0
-      DO 825 J = 1,NYW
-      IF (IYON(J) .NE. I) GO TO 825
+         IF (NYW .LE. 0) GO TO 690
+         IPT = 0
+         DO 620 J = 1,NYW
+            IF (IYON(J) .NE. I) GO TO 620
 C
 C     ---- WE'VE GOT A YON WATER HERE ----
 C
-      IPT = 2
-      GO TO 835
-825   CONTINUE
-      IF (NVW .LE. 0) GO TO 890
-      DO 830 J = 1,NVW
-      IF (IVIC(J) .NE. I) GO TO 830
+            IPT = 2
+            GO TO 640
+  620    CONTINUE
+         IF (NVW .LE. 0) GO TO 690
+         DO 630 J = 1,NVW
+            IF (IVIC(J) .NE. I) GO TO 630
 C
 C     ---- WE'VE GOT A VICTIM ----
 C
-      IPT = 1
-      GO TO 835
-830   CONTINUE
-835   CONTINUE
+            IPT = 1
+            GO TO 640
+  630    CONTINUE
+  640    CONTINUE
 C
-      IF (IPT .LE. 0) GO TO 890
+         IF (IPT .LE. 0) GO TO 690
 C
 C     ---- CHECK THIS VICTIM OR YON PROBE AGAINST ALL YON PROBES ---
 C
-      DO 850 J = 1,NYW
-      IF (DIST2(CW(1,1),YONWAT(1,J)) .GE. DW2) GO TO 850
-      IF (DOT1(ALT,YONALT(1,J)) .GE. 0.0) GO TO 850
+         DO 660 J = 1,NYW
+            IF (DIST2(CW(1,1),YONWAT(1,J)) .GE. DW2) GO TO 660
+            IF (DOT1(ALT,YONALT(1,J)) .GE. 0.0) GO TO 660
 C
 C     ---- THIS YON WATER COULD EAT SOME OF THE PROBE'S POINTS ----
 C
-      NEAT = NEAT + 1
-      IF (NEAT .GT. 100) CALL ERROR(830,NEAT,0.0)
-      DO 840 K = 1,3
-      EAT(K,NEAT) = YONWAT(K,J)
-840   CONTINUE
-850   CONTINUE
+            NEAT = NEAT + 1
+            IF (NEAT .GT. 100) CALL ERROR(830,NEAT,0.0d0)
+            DO 650 K = 1,3
+               EAT(K,NEAT) = YONWAT(K,J)
+  650       CONTINUE
+  660    CONTINUE
 C
 C     ----- ONLY YON WATERS CAN HAVE THEIR POINTS EATEN BY VICTIMS ---
 C
-      IF (IPT .LE. 1) GO TO 890
+         IF (IPT .LE. 1) GO TO 690
 C
 C     ----- CHECK THIS YON PROBE AGAINST ALL VICTIM PROBES ----
 C
-      DO 880 J = 1,NVW
-      IF (DIST2(CW(1,1),VICWAT(1,J)) .GE. DW2) GO TO 880
-      IF (DOT1(ALT,VICALT(1,J)) .GE. 0.0) GO TO 880
+         DO 680 J = 1,NVW
+            IF (DIST2(CW(1,1),VICWAT(1,J)) .GE. DW2) GO TO 680
+            IF (DOT1(ALT,VICALT(1,J)) .GE. 0.0) GO TO 680
 C
 C     ---- THIS VICTIM WATER COULD EAT SOME OF THE PROBE'S POINTS ---
 C
-      NEAT = NEAT + 1
-      IF (NEAT .GT. 100) CALL ERROR(850,NEAT,0.0)
-      DO 870 K = 1,3
-      EAT(K,NEAT) = VICWAT(K,J)
-870   CONTINUE
-880   CONTINUE
+            NEAT = NEAT + 1
+            IF (NEAT .GT. 100) CALL ERROR(850,NEAT,0.0d0)
+            DO 670 K = 1,3
+               EAT(K,NEAT) = VICWAT(K,J)
+  670       CONTINUE
+  680    CONTINUE
 C
 C     ---- SKIP TO HERE IF VICTIM OR BOTH PROBE OVERLAP CHECKS OMITTED
 C
-890   CONTINUE
+  690    CONTINUE
 C
 C     ---- READ THE SURFACE POINT BELONGING TO THE PROBE ----
 C
-      DO 930 J = 1,NP
-      READ (3,380) N1(1),N2(1),N3(1),(SCO(K,1),K=1,3),AREA,YON(1)
-      IF (NEAT .LE. 0) GO TO 910
+         DO 730 J = 1,NP
+            READ (3,250) N1(1),N2(1),N3(1),(SCO(K,1),K=1,3),AREA,YON(1)
+            IF (NEAT .LE. 0) GO TO 710
 C
 C     ---- CHECK SURFACE POINT AGAINST ALL EATERS OF THIS PROBE ----
 C
-      DO 900 K = 1,NEAT
-      IF (DIST2(EAT(1,K),SCO(1,1)) .LT. RW2) GO TO 930
-900   CONTINUE
+            DO 700 K = 1,NEAT
+               IF (DIST2(EAT(1,K),SCO(1,1)) .LT. RW2) GO TO 730
+  700       CONTINUE
 C
 C     ---- SKIP TO HERE IF NO OVERLAPPING PROBES COULD EAT THIS POINT
 C
-910   CONTINUE
-      DO 920 K = 1,3
-      VECTOR(K) = (CW(K,1) - SCO(K,1))/RW
-920   CONTINUE
-      WRITE(40,640) N1(1),N2(1),N3(1),ISHAPE,(SCO(K,1),K=1,3),AREA,
-     1(VECTOR(K),K=1,3)
+  710       CONTINUE
+            DO 720 K = 1,3
+               VECTOR(K) = (CW(K,1) - SCO(K,1))/RW
+  720       CONTINUE
+            WRITE(40,480) N1(1),N2(1),N3(1),ISHAPE,(SCO(K,1),K=1,3),AREA
+     1,(VECTOR(K),K=1,3)
 C
-930   CONTINUE
-950   CONTINUE
-960   CONTINUE
+  730    CONTINUE
+  740 CONTINUE
+  750 CONTINUE
 C
 C     CLOSE(3)
 C     CLOSE(4)
-      STOP
-      END
-      SUBROUTINE CROSS(A,B,C)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-C     IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION A(3)
-      DIMENSION B(3)
-      DIMENSION C(3)
-      C(1) = A(2) * B(3) - A(3) * B(2)
-      C(2) = A(3) * B(1) - A(1) * B(3)
-      C(3) = A(1) * B(2) - A(2) * B(1)
-      RETURN
-      END
-      FUNCTION DIST(A,B)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      DIMENSION A(3)
-      DIMENSION B(3)
-      DIST = SQRT((A(1)-B(1))**2 + (A(2)-B(2))**2 + (A(3)-B(3))**2)
-      RETURN
+      CALL MOPEND
       END
       SUBROUTINE VNORM(A,B)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-C     IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION A(3),B(3)
       V = ANORM(A)
-      DO 100 K = 1,3
-      B(K) = A(K) / V
-100   CONTINUE
-      RETURN
-      END
-      SUBROUTINE CCI(A,B,RA,RB,PERP,BASE,VECT,TRI)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-C     IMPLICIT REAL*8 (A-H,O-Z)
-C
-C     ---- CIRCLE-CIRCLE INTERSECTION ----
-C
-      DIMENSION A(3), B(3)
-      DIMENSION PERP(3)
-      DIMENSION BASE(3)
-      DIMENSION VECT(3)
-      LOGICAL TRI
-      DIMENSION C(3),CU(3),C1V(3)
-      DO 100 K = 1,3
-      C(K) = B(K) - A(K)
-100   CONTINUE
-      DAB = ANORM(C)
-C
-C     ----- IS IT A TRIANGLE? ----
-C
-      TRI = .TRUE.
-      IF (RA + RB .LE. DAB) TRI = .FALSE.
-      IF (RA + DAB .LE. RB) TRI = .FALSE.
-      IF (DAB + RB .LE. RA) TRI = .FALSE.
-      IF (.NOT. TRI) RETURN
-      CALL VNORM(C,CU)
-      C1 = 0.5 * (DAB + (RA**2 - RB**2)/DAB)
-      DO 200 K = 1,3
-      C1V(K) = C(K) * (C1/DAB)
-      BASE(K) = A(K) + C1V(K)
-200   CONTINUE
-      V = SQRT(RA**2 - C1**2)
-      CALL CROSS(C,PERP,VECT)
-      CALL VNORM(VECT,VECT)
-      DO 300 K = 1,3
-      VECT(K) = VECT(K) * V
-300   CONTINUE
-      RETURN
-      END
-      SUBROUTINE ERROR(NUMBER,INT,FLOAT)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-C     IMPLICIT REAL*8 (A-H,O-Z)
-C
-      COMMON/IO/IN,IOUT,IPUNCH
-      DIMENSION LIST(15)
-      DATA LIST/110,120,130,140,150,160,170,
-     *210,320,440,480,720,760,830,850/
-C
-      DO 10 I = 1,15
-      IF (LIST(I) .EQ. NUMBER) GO TO 20
+      DO 10 K = 1,3
+         B(K) = A(K) / V
    10 CONTINUE
-      WRITE (IOUT,15)
-   15 FORMAT('ERROR OF UNIDENTIFIABLE TYPE')
-      STOP
-   20 CONTINUE
-C
-      GO TO (110,120,130,140,150,160,170,210,320,440,480,
-     *720,760,830,850) I
-C
-  110 WRITE (IOUT,115) NUMBER,FLOAT
-  115 FORMAT('ERROR',I5,2X,'NEGATIVE SURFACE POINT DENSITY: ',F10.5)
-      STOP
-  120 WRITE (IOUT,125) NUMBER,FLOAT
-  125 FORMAT('ERROR',I5,2X,'NEGATIVE PROBE RADIUS:',F10.5)
-      STOP
-  130 WRITE (IOUT,135) NUMBER,INT
-  135 FORMAT('ERROR',I5,2X,'TOO FEW OR TOO MANY ATOM TYPES:',I5)
-      STOP
-  140 WRITE (IOUT,145) NUMBER,FLOAT,INT
-  145 FORMAT('ERROR',I5,2X,'NEGATIVE ATOM RADIUS:',F10.5,' ATOM',I5)
-      STOP
-  150 WRITE (IOUT,155) NUMBER,INT
-  155 FORMAT('ERROR',I5,2X,'TOO MANY ATOMS:',I5)
-      STOP
-  160 WRITE (IOUT,165) NUMBER,INT
-  165 FORMAT('ERROR',I5,2X,
-     1'INVALID SURFACE REQUEST NUMBER FOR ATOM:',I5)
-      STOP
-  170 WRITE (IOUT,175) NUMBER,INT
-  175 FORMAT('ERROR',I5,2X,'INVALID ATOM TYPE FOR ATOM:',I5)
-      STOP
-  210 WRITE (IOUT,215) NUMBER,INT
-  215 FORMAT('ERROR',I5,2X,'TOO MANY NEIGHBORS:',I5)
-      STOP
-  320 WRITE (IOUT,325) NUMBER,INT
-  325 FORMAT('ERROR',I5,2X,'TOO MANY POINTS FOR REENTRANT PROBE:',I5)
-      STOP
-  440 WRITE (IOUT,445) NUMBER,INT
-  445 FORMAT('ERROR',I5,2X,'TOO MANY POINTS FOR ARC:',I5)
-      STOP
-  480 WRITE (IOUT,485) NUMBER,INT
-  485 FORMAT('ERROR',I5,2X,'TOO MANY POINTS FOR REENTRANT PROBE:',I5)
-      STOP
-  720 WRITE (IOUT,725) NUMBER,INT
-  725 FORMAT('ERROR',I5,2X,'TOO MANY YON WATERS:',I5)
-      STOP
-  760 WRITE (IOUT,765) NUMBER,INT
-  765 FORMAT('ERROR',I5,2X,'TOO MANY VICTIM WATERS:',I5)
-      STOP
-  830 WRITE (IOUT,835) NUMBER,INT
-  835 FORMAT('ERROR',I5,2X,'TOO MANY EATERS:',I5)
-      STOP
-  850 WRITE (IOUT,855) NUMBER,INT
-  855 FORMAT('ERROR',I5,2X,'TOO MANY EATERS:',I5)
-      STOP
-      END
-      FUNCTION DET(A,B,C)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-C     IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION A(3)
-      DIMENSION B(3)
-      DIMENSION C(3)
-      DIMENSION AB(3)
-      CALL CROSS(A,B,AB)
-      DET = DOT1(AB,C)
-      RETURN
-      END
-      FUNCTION ANORM(A)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-C     IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION A(3)
-      ANORM = SQRT(A(1)**2 + A(2)**2 + A(3)**2)
-      RETURN
-      END
-      FUNCTION DOT1(A,B)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-C     IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION A(3)
-      DIMENSION B(3)
-      DOT1 = A(1)*B(1) + A(2)*B(2) + A(3)*B(3)
-      RETURN
-      END
-      SUBROUTINE MULTV(V,A,W)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-C     IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION A(3,3)
-      DIMENSION V(3)
-      DIMENSION W(3)
-      DO 100 I = 1, 3
-      W(I) = A(I,1)*V(1) + A(I,2)*V(2) + A(I,3)*V(3)
-100   CONTINUE
-      RETURN
-      END
-      SUBROUTINE IMATX(A)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-C     IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION A(3,3)
-      DO 200 I = 1,3
-      DO 100 J = 1,3
-      A(I,J) = 0.0
-100   CONTINUE
-      A(I,I) = 1.0
-200   CONTINUE
-      RETURN
-      END
-      SUBROUTINE CAT(A,B)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-C     IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION A(3,3)
-      DIMENSION B(3,3)
-      DIMENSION TEMP(3,3)
-      DO 200 I = 1,3
-      DO 100 J = 1,3
-      TEMP(I,J) = A(I,1)*B(1,J) + A(I,2)*B(2,J) + A(I,3)*B(3,J)
-100   CONTINUE
-200   CONTINUE
-      DO 400 I = 1,3
-      DO 300 J = 1,3
-      A(I,J) = TEMP(I,J)
-300   CONTINUE
-400   CONTINUE
       RETURN
       END
       SUBROUTINE VPERP(A,B)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-C     IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION A(3)
       DIMENSION B(3)
       DIMENSION P(3)
       SMALL = 10000.0
       M = 0
-      DO 100 K = 1,3
-      IF (ABS(A(K)) .GE. SMALL) GO TO 100
-      SMALL = ABS(A(K))
-      M = K
-100   CONTINUE
-      DO 200 K = 1,3
-      B(K) = 0.0
-      IF (K .EQ. M) B(K) = 1.0
-200   CONTINUE
-      DT = A(M) / (A(1)**2 + A(2)**2 + A(3)**2)
-      DO 300 K = 1, 3
-      P(K) = DT * A(K)
-      B(K) = B(K) - P(K)
-300   CONTINUE
-      CALL VNORM(B,B)
-      RETURN
-      END
-      SUBROUTINE CONJ(H,G,GHGT)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-C     IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION G(3,3)
-      DIMENSION H(3,3)
-      DIMENSION GHGT(3,3)
-      DIMENSION GT(3,3)
-C
-C     ----- INITIALIZE GHGT MATRIX TO IDENTITY
-C     CONCATENATE G H GT ----
-C
-      CALL IMATX(GHGT)
-      CALL CAT(GHGT,G)
-      CALL CAT(GHGT,H)
-      DO 200 K = 1,3
-      DO 100 L = 1,3
-      GT(K,L) = G(L,K)
-100   CONTINUE
-200   CONTINUE
-      CALL CAT(GHGT,GT)
-      RETURN
-      END
-      SUBROUTINE CADIMA
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      INCLUDE 'SIZES'
-      INTEGER SHELLA,SHELLN,SHELLT,SHELLC,SHLADF,AOS
-      INTEGER SCONA,SCONB
-      INTEGER UBOUND,ULPURE
-      INTEGER SHELLX
-      CHARACTER*214 KEYWRD
-      COMMON /KEYWRD/ KEYWRD
-      COMMON /MOLKST/ NUMAT,NAT(NUMATM),NFIRST(NUMATM),NMIDLE(NUMATM),
-     1  NLAST(NUMATM),NORBS,NELECS,NALPHA,NBETA,NCLOSE,NOPEN
-      COMMON /VECTOR/ C(MORB2),EIGS(MAXORB),VECS(MORB2),EIGB(MAXORB)
-      COMMON /SCRACH/ RXYZ(MPACK)
-      COMMON /HMATRX/ H(MPACK)
-      COMMON /FOKMAT/ F(MPACK)
-      COMMON CXYZ(NUMATM,3),NATOMS,ICHARG,MULTIP,IAN(NUMATM),NAE,NBE,NE,
-     1NBASIS
-      COMMON/B/EXX(360),C1(360),C2(360),C3(360),X(90),Y(90),Z(90),
-     $         JAN(90),SHELLA(90),SHELLN(90),SHELLT(90),SHELLC(90),
-     $         AOS(90),AON(90),NSHELL,MAXTYP
-      COMMON/MAX/LAMAX,LBMAX,LPMAX
-      COMMON/LIMIT/IMJ,ISTART,JSTART,IEND,JEND,IRANGE,JRANGE,LENTQ
-      COMMON/TYPE/ITYPE,JTYPE
-      COMMON/IA/LIND(151)
-      COMMON/CONST/ZERO,HALF,ONE,ONEPT5,TWO,THREE,FOUR,TEN,F42
-      COMMON/TWOP/TWOPT2,EPI,TERM
-      COMMON/CFACT/PT5,R3OV2,ROOT3,ROOT5,ROOT15,R1,R2,R4,Z1,Z2,Z3
-      COMMON/CONTR/CA(20),CB(20)
-      COMMON/TWOC/TWOCX(9),TWOCY(9),TWOCZ(9)
-      COMMON/THREEC/XIP(16),YIP(16),ZIP(16),SX(36),SY(36),SZ(36)
-      COMMON/INTK/ZERO1,XINT(12)
-      COMMON/NEW/INEW,JNEW
-      COMMON/ORDER/NORDR(20),N6ORD(10),N5ORD(9),N10ORD(10),N7ORD(7),
-     $             LBOUND(4,3),UBOUND(4),ULPURE(4)
-      COMMON/BLOCK/SS(100),EEK(100),EEP(200)
-      COMMON/IPURE/IPURD,IPURF
-      COMMON/RYS/IOP1,IOP2
-      COMMON/T2W21E/LENT(4),LINDT(4),IADR(4),S(4),
-     $YCUT(4),T2(1030),W2(1030)
-      COMMON/INTCON/F6I,F20I,F100
-      COMMON/CC/CCX(112),CCY(112),CCZ(112)
-      COMMON/CSS/CSS(396)
-      COMMON/A/A(49)
-      COMMON/SDIM/IDIM,INC
-      COMMON/PDIM/INCP,IDIM2C,IDIMAA
-      COMMON/XYZ/XV(55,65),YV(55,65),ZV(55,65)
-      COMMON/BB/VALV(55,65),NPP,NY,IPR
-      COMMON/DEORT/SHELLX(90)
-C
-      DIMENSION SHLADF(90),C4(90)
-      DIMENSION TP(4),WP(4),FOC(150)
-      DIMENSION INDIX(20),INDIY(20),INDIZ(20),INDJX(20),INDJY(20),
-     $          INDJZ(20)
-      DIMENSION INDSX(20),INDSY(20),INDSZ(20)
-      DIMENSION IFPRT(8)
-      DIMENSION DA(11325),D(150,150),V(150,150)
-C
-      EQUIVALENCE(C4(1),C3(91)),(SHLADF(1),C3(181))
-      EQUIVALENCE (DA(1),D(1,1))
-C
-      DATA CUT1/-100.0E0/
-      DATA INDJX/1,2,1,1,3,1,1,2,2,1,4,1,1,2,3,3,2,1,1,2/
-      DATA INDJY/1,1,2,1,1,3,1,2,1,2,1,4,1,3,2,1,1,2,3,2/
-      DATA INDJZ/1,1,1,2,1,1,3,1,2,2,1,1,4,1,1,2,3,3,2,2/
-      DATA F15/15.0E0/
-      DATA IFPRT/0,1,2,0,0,1,1,2/
-C
-C     ASSIGN VALUES TO SEVERAL VARIABLES
-C
-      IPURD=0
-      IPURF=0
-      CCX(1)=1.E0
-      CCY(1)=1.E0
-      CCZ(1)=1.E0
-      ZERO1=0.E0
-      INCP=0
-      IDIM2C=7
-      IDIMAA=49
-      IDIM=6
-      INC=2
-      ZERO=0.E0
-      HALF=0.5E0
-      ONE=1.E0
-      ONEPT5=1.5E0
-      TWO=2.E0
-      THREE=3.E0
-      TEN=10.E0
-      F42=42.E0
-      FOUR=4.E0
-      DO 1 I=1,12
-    1 XINT(I)=FLOAT(I)
-      F100=100.E0
-      F20=20.E0
-      PT5=0.5E0
-      IF (IPR.GT.1) GOTO 3010
-C
-C     THE DENSITY MATRIX IS BUILT UP
-C
-      NMO=NE/2
-      DO 3043 I=1,NMO
- 3043 FOC(I)=TWO
-C
-C     EIGENVECTORS ARE DEORTHOGONALIZED AND STORED IN ARRAY V
-C     DEPENDING ON HT METHOD USED TO COMPUTE THE MEP
-C
-      CALL MULLIK (C,H,F,NORBS,VECS,RXYZ)
-      DO 3006 I=1,NMO
-      DO 3006 J=1,NORBS
-      IF (INDEX(KEYWRD,'ORT').NE.0) THEN
-      V(J,I)=C(J+NORBS*I-NORBS)
-      ELSE
-      V(J,I)=VECS(J+NORBS*I-NORBS)
-      END IF
-3006  CONTINUE
-      DO 3013 I=1,NBASIS
-      DO 3013 J=1,I
-      D(I,J)=ZERO
-      DO 3012 K=1,NMO
- 3012 D(I,J)=D(I,J)+FOC(K)*V(I,K)*V(J,K)
-      IF(I.NE.J)D(I,J)=TWO*D(I,J)
- 3013 D(J,I)=D(I,J)
-C
-C     PLACES SYMMETRIC SQUARE ARRAY IN LINEAR FORM
-C
-C
-      K=1
-      DO 3001 J=1,NBASIS
-      DO 3001 I=1,J
-      DA(K)=D(I,J)
-3001  K=K+1
- 3010 CONTINUE
-C
-C    *******************************************************************
-C     INITIALIZE THIS OVERLAY.
-C    *******************************************************************
-C
-      KOP1=6
-      KOP2=0
-      IOP1=KOP1
-      IOP2=KOP2
-      S(1)=0.25E0
-      S(2)=0.367006838E0
-      S(3)=0.180984215E0
-      S(4)=0.116432928E0
-      PI=FOUR* ATAN(ONE)
-      TWOPI=PI+PI
-      ROOTPI= SQRT(PI)
-      PI3HAF=PI*ROOTPI
-C     /INTCON/ VARIABLES TO RPOLA.
-      F6I=ONE/XINT(6)
-      F20I=ONE/F20
-C
-      NTT=NBASIS*(NBASIS+1)/2
-C
-C     INITIALIZE /CFACT/.
-      ROOT3= SQRT(XINT(3))
-      R3OV2=HALF*ROOT3
-      ROOT5= SQRT(XINT(5))
-      ROOT15= SQRT(F15)
-      R1=PT5* SQRT(XINT(5)/XINT(2))
-      R2=XINT(3)/(XINT(2)*ROOT5)
-      R4=PT5* SQRT(XINT(3)/XINT(2))
-      Z1=XINT(4)/ROOT5
-      Z2=XINT(1)/ROOT5
-      Z3=XINT(3)/ROOT5
-C
-C     FILL INDS AND INDI.
-      DO 30 I=1,20
-      INDIX(I)=4*(INDJX(I)-1)
-      INDIY(I)=4*(INDJY(I)-1)
-      INDIZ(I)=4*(INDJZ(I)-1)
-      INDSX(I)=6*(INDJX(I)-1)
-      INDSY(I)=6*(INDJY(I)-1)
-      INDSZ(I)=6*(INDJZ(I)-1)
-   30 CONTINUE
-C
-C     CLEAR /TWOC/.
-      DO 53 I=1,27
-   53 TWOCX(I)=ZERO
-C
-C     CLEAR /A/.
-      DO 54 I=1,49
-   54 A(I)=ZERO
-C
-C     CLEAR /CSS/.
-      ZERO2=ZERO
-      CSS(1)=ONE
-      DO 55 I=2,396
-   55 CSS(I)=ZERO
-C
-C     CLEAR /THREEC/.
-      DO 56 I=1,156
-   56 XIP(I)=ZERO
-C
-C     CLEAR /CC/.
-      WORD=ZERO
-      DO 57 I=1,336
-   57 CCX(I)=ZERO
-      CCX(1)=ONE
-      CCY(1)=ONE
-      CCZ(1)=ONE
-C
-C     CLEAR /CONTR/.
-      DO 58 I=1,20
-      CA(I)=ZERO
-   58 CB(I)=ZERO
-C
-C     FILL COMMON /ORDER/
-C
-      UBOUND(1)=1
-      UBOUND(2)=4
-      UBOUND(3)=10
-      UBOUND(4)=20
-      ULPURE(1)=1
-      ULPURE(2)=4
-      ULPURE(3)=9
-      ULPURE(4)=17
-      LBOUND(1,1)=1
-      LBOUND(2,1)=1
-      LBOUND(3,1)=1
-      LBOUND(4,1)=1
-      LBOUND(1,2)=1
-      LBOUND(2,2)=2
-      LBOUND(3,2)=5
-      LBOUND(4,2)=11
-      LBOUND(1,3)=1
-      LBOUND(2,3)=1
-      LBOUND(3,3)=5
-      LBOUND(4,3)=11
-      DO 402 I=1,10
-402   N6ORD(I)=I
-      DO 403 I=1,9
-403   N5ORD(I)=I
-      DO 404 I=1,10
-404   N10ORD(I)=I+10
-      DO 405 I=1,7
-405   N7ORD(I)=I+10
-C
-C     INITIALIZE THE ORDERING VARIABLES USED BY FILMAT.
-C     THIS PIECE OF CODE MAY LOOK REDUNDANT, BUT HANG ON TO IT.
-C     ONE CAN USE THIS LOGIC TO ALTER THE ORDER OF THE BASIS FUNCTIONS.
-C     (IE. CHANGE THE ORDER OF THE SIX D-FUNCTIONES, ETC.)
-      IF(IPURD)475,470,475
-  470 DO 471 I=1,9
-  471 NORDR(I)=N5ORD(I)
-      GO TO 477
-  475 DO 476 I=1,10
-  476 NORDR(I)=N6ORD(I)
-  477 IF(IPURF)485,481,485
-  481 DO 482 I=1,7
-  482 NORDR(I+10)=N7ORD(I)
-      GO TO 487
-  485 DO 486 I=1,10
-  486 NORDR(I+10)=N10ORD(I)
-  487 CONTINUE
-C
-C     FILL INDEXING ARRAY FOR FILMAT AND LINOUT.
-C
-      NBASP=NBASIS+1
-      DO 60 I=1,NBASP
-   60 LIND(I)=(I*(I-1))/2
-C
-C    *******************************************************************
-C     LOOP OVER SHELLS.
-C    *******************************************************************
-C
-C     LOOP OVER ISHELL
-C
-      DO 1000 ISHELL=1,NSHELL
-      INEW=ISHELL
-      XA=X(ISHELL)
-      YA=Y(ISHELL)
-      ZA=Z(ISHELL)
-      IGBEGN=SHELLA(ISHELL)
-      IGEND=IGBEGN+SHELLN(ISHELL)-1
-      NA=SHELLN(ISHELL)
-      ITYPE=SHELLT(ISHELL)
-      LAMAX=ITYPE+1
-      SCONA=SHELLC(ISHELL)
-      IEND=UBOUND(LAMAX)
-      ISTART=LBOUND(LAMAX,SCONA+1)
-      IRANGE=IEND-ISTART+1
-      IGDF=SHLADF(INEW)
-C
-C     LOOP OVER JSHELL.
-C
-      DO 1000 JSHELL=1,ISHELL
-      JNEW=JSHELL
-      XB=X(JSHELL)
-      YB=Y(JSHELL)
-      ZB=Z(JSHELL)
-      JGBEGN=SHELLA(JSHELL)
-      JGEND=JGBEGN+SHELLN(JSHELL)-1
-      NB=SHELLN(JSHELL)
-      JTYPE=SHELLT(JSHELL)
-      LBMAX=JTYPE+1
-      SCONB=SHELLC(JSHELL)
-      JSTART=LBOUND(LBMAX,SCONB+1)
-      JEND=UBOUND(LBMAX)
-      JRANGE=JEND-JSTART+1
-      JGDF=SHLADF(JNEW)
-C
-C     OPTION TO COMPUTE MEP FOLLOWING REYNOLDS'S METHOD
-C
-      IF(INDEX(KEYWRD,'ORT').NE.0) THEN
-        IF(SHELLX(ISHELL).NE.SHELLX(JSHELL)) GOTO 1000
-      END IF
-C
-      LPMAX=LAMAX+LBMAX-1
-      LENTQ=IRANGE*JRANGE
-      LIM1=LENTQ+100
-      IMJ=IABS(ISHELL-JSHELL)
-      NZERO=(ITYPE+JTYPE)/2+1
-      ABX=XB-XA
-      ABY=YB-YA
-      ABZ=ZB-ZA
-      RABSQ=ABX*ABX+ABY*ABY+ABZ*ABZ
-   80 CONTINUE
-C
-C    *******************************************************************
-C     LOOP OVER PRIMITIVE GAUSSIANS.
-C    *******************************************************************
-C
-      DO 3050 IRET=1,NPP
-      DO 3050 JRET=1,NY
-      DO 90 I=1,LENTQ
-   90 EEP(I)=ZERO
-      DO 900 IGAUSS=IGBEGN,IGEND
-      AS=EXX(IGAUSS)
-      ASXA=AS*XA
-      ASYA=AS*YA
-      ASZA=AS*ZA
-      ARABSQ=AS*RABSQ
-      CALL FILLC(ITYPE,IGBEGN,IGAUSS,IGDF,CA)
-C
-      DO 900 JGAUSS=JGBEGN,JGEND
-      BS=EXX(JGAUSS)
-      CALL FILLC(JTYPE,JGBEGN,JGAUSS,JGDF,CB)
-C
-      EP=AS+BS
-      EPI=ONE/EP
-      TWOP=EP+EP
-      ARG=-BS*ARABSQ*EPI
-      PEXP=ZERO
-      IF(ARG.GT.CUT1) PEXP=EXP(ARG)
-      ZTEMP=TWOPI*EPI*PEXP
-      PX=(ASXA+BS*XB)*EPI
-      PY=(ASYA+BS*YB)*EPI
-      PZ=(ASZA+BS*ZB)*EPI
-C
-      XAP=PX-XA
-      XBP=PX-XB
-      YAP=PY-YA
-      YBP=PY-YB
-      ZAP=PZ-ZA
-      ZBP=PZ-ZB
-C
-      CALL GETCC1(CCX,XAP,XBP)
-      CALL GETCC1(CCY,YAP,YBP)
-      CALL GETCC1(CCZ,ZAP,ZBP)
-C
-C     ZERO ACCUMULATION AREA.
-C
-      DO 110 I=100,LIM1
-  110 EEP(I)=ZERO
-C
-C    *******************************************************************
-C     LOOP OVER ATOMS.
-C    *******************************************************************
-C
-C
-      XC=XV(IRET,JRET)
-      YC=YV(IRET,JRET)
-      ZC=ZV(IRET,JRET)
-      CIA= ONE
-      ZT=ZTEMP*CIA
-      PCX=XC-PX
-      PCY=YC-PY
-      PCZ=ZC-PZ
-      RPCSQ=PCX*PCX+PCY*PCY+PCZ*PCZ
-      ARG=EP*RPCSQ
-      CALL RPOL1(NZERO,ARG,TP,WP)
-      CALL GETA1(A)
-C
-C    *******************************************************************
-C     LOOP OVER ZEROES OF RYS POLYNOMIAL.
-C    *******************************************************************
-C
-      DO 700 IZERO=1,NZERO
-C
-      TWOPT2=TWOP*TP(IZERO)
-      ZCONST=ZT*WP(IZERO)
-C
-      CALL GET2C(TWOCX,PCX,ONE,A)
-      CALL GET2C(TWOCY,PCY,ONE,A)
-      CALL GET2C(TWOCZ,PCZ,ZCONST,A)
-C
-      CALL GET3C(XIP,TWOCX,CCX)
-      CALL GET3C(YIP,TWOCY,CCY)
-      CALL GET3C(ZIP,TWOCZ,CCZ)
-C
-C    *******************************************************************
-C     LOOP OVER ATOMIC ORBITALS.
-C    *******************************************************************
-C
-      INTC=100
-      DO 600 I=ISTART,IEND
-C
-      IX=INDIX(I)
-      IY=INDIY(I)
-      IZ=INDIZ(I)
-C
-      DO 600 J=JSTART,JEND
-      JX=INDJX(J)
-      JY=INDJY(J)
-      JZ=INDJZ(J)
-C
-      INTC=INTC+1
-      EEP(INTC)=EEP(INTC)+XIP(IX+JX)*YIP(IY+JY)*ZIP(IZ+JZ)
-C
-  600 CONTINUE
-C     ... END OF AO LOOP.
-C
-  700 CONTINUE
-C     ... END OF LOOP OVER RYS ZEROES.
-C
-      INTC=0
-      DO 210 I=ISTART,IEND
-      IX=INDSX(I)
-      IY=INDSY(I)
-      IZ=INDSZ(I)
-      DO 210 J=JSTART,JEND
-      JX=INDJX(J)
-      JY=INDJY(J)
-      JZ=INDJZ(J)
-      INTC=INTC+1
-C
-      COEF=CA(I)*CB(J)
-  210 EEP(INTC)=EEP(INTC)+EEP(INTC+100)*COEF
-C
-  900 CONTINUE
-C     ... END OF LOOP OVER GAUSSIANS.
-C
-C     FILMAT TAKES THE INTEGRALS IN EEP, EEK, AND SS, AND STORES THEM
-C     IN THE PROPER PLACES IN S, T, AND V.
-C
-      CALL FILMAT(EEP,DA)
- 3050 VALV(IRET,JRET)=VALV(IRET,JRET)-EEP(1)
- 1000 CONTINUE
-C........ END OF LOOP OVER SHELLS.
-      RETURN
-      END
-      SUBROUTINE GETA1(A)
-C
-C     --------------------------
-C     GAUSSIAN 76 (QCPE VERSION)
-C     DECEMBER 1977
-C     CONTROL DATA 7600
-C     --------------------------
-C
-C
-C
-C    *******************************************************************
-C
-C          THIS SUBROUTINE CALCULATES THE COEFFICIENTS WHICH TRANSFORM
-C     THE FUNCTIONS G(IV) INTO THE TWO CENTER INTEGRALS.  THIS
-C     TRANSFORMATION IS CARRIED OUT IN SUBROUINTE GET2C, WHICH SHOULD
-C     BE CONSULTED FOR MORE DETAILS OF THE USE OF THESE COEFFICIENTS.
-C
-C          THE A MATRIX IS OF DIMENSION A(IDIM,IDIM), ALTHOUGH THE
-C     ACTUAL INDEXING IS DONE LINEARLY.  IDIM IS 7 IN LINK 302 (STVINT)
-C     AND 9 IN LINK 701 (PROP1E).  THE COEFFICIENTS ARE CALCULATED
-C     FROM A(1,1)=1.0, AND THE RECURSION FORMULA0
-C
-C          A(LV,LP+1) = (A(LV,LP-1)*(LP-1) + A(LV-1,LP))/(2*P)
-C
-C    *******************************************************************
-C
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      DIMENSION A(2)
-C
-      COMMON/MAX/LAMAX,LBMAX,LPMAX
-      COMMON/PDIM/INCP,IDIM,LENG
-      COMMON/TWOP/TWOPT2,EPI
-      COMMON/CONST/ZERO,HALF,ONE
-      COMMON/INTK/ZERO1,XINT(12)
-C
-      LPNEW=LPMAX+INCP
-      PP=HALF*EPI
-      A(1)=ONE
-      A(IDIM+2)=PP
-      IF(LPNEW.LE.2) GO TO 20
-      DO 10 LP=3,LPNEW
-      INDLP=IDIM*(LP-1)
-      ILPM1=INDLP-IDIM-1
-      ILPM2=ILPM1-IDIM+1
-      LPM2=LP-2
-      DO 10 LV=1,LP
-C
-   10 A(INDLP+LV)=PP*(XINT(LPM2)*A(ILPM2+LV)+A(ILPM1+LV))
-C
+      DO 10 K = 1,3
+         IF (ABS(A(K)) .GE. SMALL) GO TO 10
+         SMALL = ABS(A(K))
+         M = K
+   10 CONTINUE
+      DO 20 K = 1,3
+         B(K) = 0.0
+         IF (K .EQ. M) B(K) = 1.0
    20 CONTINUE
-      RETURN
-      END
-      SUBROUTINE GET2C(TWOC,X,CONST,A)
-C
-C     --------------------------
-C     GAUSSIAN 76 (QCPE VERSION)
-C     DECEMBER 1977
-C     CONTROL DATA 7600
-C     --------------------------
-C
-C
-C    *******************************************************************
-C
-C          THIS SUBROUTINE FORMS THE TWO CENTER INTEGRALS IN TWOC.  THE
-C     FUNCTIONS G ARE FORMED FROM X AND CONST USING G(1) = CONST, AND
-C     THE RECURSION FORMULA0
-C
-C          G(IV) = TWOPT2*(X*G(IV-1) - (IV-2)*G(IV-2))
-C
-C     THE TWO CENTER INTEGRALS ARE THEN FORMED USING THE COEFFICIENTS
-C     IN A, WHICH WERE FORMED IN SUBROUTINE GETA1.
-C
-C    *******************************************************************
-C
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      COMMON/INTK/ZERO,XINT(12)
-      COMMON/MAX/LAMAX,LBMAX,LPMAX
-      COMMON/TWOP/TWOPT2,EPI
-      COMMON/PDIM/INCP,IDIM2C,IDIMAA
-C
-      DIMENSION TWOC(1),A(1)
-      DIMENSION G(9)
-C
-C     CALCULATE THE G FUNCTIONS.
-C
-      LPNEW=LPMAX+INCP
-      G(1)=CONST
-      G(2)=TWOPT2*X*G(1)
-      DO 10 I=3,9
-   10 G(I)=ZERO
-      IF(LPNEW.LE.2) GO TO 200
-      DO 100 IV=3,LPNEW
-C
-  100 G(IV)=TWOPT2*(X*G(IV-1)-XINT(IV-2)*G(IV-2))
-C
-C     NOW EVALUATE THE TWO CENTER INTEGRALS USING G AND A.
-C
-  200 DO 400 LP=1,LPNEW
-      INDA=IDIM2C*(LP-1)
-      Y=ZERO
-      DO 300 IV=1,LP
-  300 Y=Y+A(INDA+IV)*G(IV)
-  400 TWOC(LP)=Y
-C
-      RETURN
-      END
-      SUBROUTINE GET3C(VALIP,TWOC,CC)
-C
-C     --------------------------
-C     GAUSSIAN 76 (QCPE VERSION)
-C     DECEMBER 1977
-C     CONTROL DATA 7600
-C     --------------------------
-C
-C
-C    *******************************************************************
-C
-C          THIS SUBROUTINE TRANSFORMS THE INTEGRALS OVER FUNCTIONS AT
-C     CENTER P, WHICH ARE NOW STORED IN TWOC, INTO THE INTEGRALS
-C     OVER FUNCTIONS CENTERED AT A AND B.  THESE ARE TO BE STORED IN
-C     VALIP.  THE COEFFICIENTS CC WERE FORMED IN SUBROUTINE GETCC1,
-C     AND THE INTEGRALS OVER FUNCTIONS AT P WERE FORMED IN EITHER
-C     GET2C OR GETEFG, DEPENDING UPON WHICH INTEGRALS ARE BEING
-C     TRANSFORMED.
-C
-C          THE MATRIX IS OF DIMENSION VALIP(4,4) AND IS FILLED TO
-C     (LBMAX,LAMAX), ALTHOUGH THE INDEXING IS DONE LINEARLY.
-C
-C    *******************************************************************
-C
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      COMMON/MAX/LAMAX,LBMAX,LPMAX
-      COMMON/CONST/ZERO
-      COMMON/PDIM/INCP,IDIM2C,IDIMAA
-C
-      DIMENSION CC(112),VALIP(16)
-      DIMENSION TWOC(7)
-C
-      DO 200 LA=1,LAMAX
-      INDCA=28*(LA-1)
-      INDIP=4*(LA-1)
-      DO 200 LB=1,LBMAX
-      INDC=INDCA+7*(LB-1)
-      LWMAX=LA+LB-1
-      Y=ZERO
-      DO 100 LW=1,LWMAX
-  100 Y=Y+CC(INDC+LW)*TWOC(LW)
-  200 VALIP(INDIP+LB)=Y
-      RETURN
-      END
-      SUBROUTINE FILMAT(F,A)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      INTEGER AOS,SHELLA,SHELLN,SHELLT,SHELLC
-      INTEGER UBOUND,ULPURE
-C
-C     --------------------------
-C     GAUSSIAN 76 (QCPE VERSION)
-C     DECEMBER 1977
-C     CONTROL DATA 7600
-C     --------------------------
-C
-      DIMENSION F(1),A(1)
-      COMMON/IPURE/IPURD,IPURF
-      COMMON/MAX/LAMAX,LBMAX,LPMAX
-      COMMON/LIMIT/IMJ,ISTART,JSTART,IEND,JEND,IRANGE,JRANGE,LENTQ
-      COMMON/NEW/INEW,JNEW
-      COMMON/B/EXX(360),C1(360),C2(360),C3(360),X(90),Y(90),Z(90),
-     $         JAN(90),SHELLA(90),SHELLN(90),SHELLT(90),SHELLC(90),
-     $         AOS(90),AON(90),NSHELL,MAXTYP
-      COMMON/ORDER/NORDR(20),N6ORD(10),N5ORD(9),N10ORD(10),N7ORD(7),
-     $             LBOUND(4,3),UBOUND(4),ULPURE(4)
-      COMMON/IA/LIND(151)
-C
-C
-C***********************************************************************
-C     THIS ROUTINE FILLS THE LOWER TRIANGULAR MATRIX A (IN LINEAR FORM)
-C     THIS ROUTINE RECEIVES AS INPUT THE SHELL NUMBERS (INEW,JNEW),
-C     SHELL DUPLICATE TEST VARIABLE (IMJ), LIMITING INFORMATION (VIA
-C     /LIMIT/), AND ADDRESSES OF SHELLS VIA /B/, AND PERFORMS MATRIX
-C     BUILDING.
-C     IF NECESSARY, PURDF1 IS CALLED TO TRANSFORM TO PURE D OR PURE F.
-C***********************************************************************
-C
-C
-C     NOTE THAT IEND, JEND, IRANGE AND JRANGE MAY BE MODIFIED BY PURDF1.
-      CALL PURDF1(F)
-      SUM=0.E0
-C
-C     COMMENCE MAIN PROCESSING LOOP.
-C     HERE, THE CORRECT INDICES ARE OBTAINED, REFERRED TO LOWER
-C     TRIANGULAR FORM, AND THE MATRIX ELEMENTS ARE PLANTED IN A.
-C     ALSO, SHELL DUPLICATE ELIMINATION IS PERFORMED HERE.
-C     ORDERING IS ACHIEVED THROUGH NORDR.
-C
-C     OBTAIN CORRECT BIAS FOR J-LOOP.
-  110 INDX1=0
-C     OBTAIN CORRECT ATOMIC ORBITAL STARTING VALUES.
-      IST=AOS(INEW)-1
-      JST=AOS(JNEW)-1
-C     COMMENCE LOOP.
-      DO 270 I=ISTART,IEND
-      IX=NORDR(I)
-      IF(IMJ)210,200,210
-  200 JEND=I
-  210 INTC=INDX1
-      DO 260 J=JSTART,JEND
-      INTC=INTC+1
-      JX=NORDR(J)
-C     OBTAIN RAW INDICES.
-      II=IX+IST
-      JJ=JX+JST
-C     OBTAIN FULL MATRIX INDEX.
-      IF(II-JJ)240,220,230
-C     EQUAL.
-  220 INDFM=LIND(II+1)
-      GO TO 250
-C     II GREATER.
-  230 INDFM=LIND(II)+JJ
-      GO TO 250
-C     JJ GREATER.
-  240 INDFM=LIND(JJ)+II
-C
-C     PLANT THE VALUE.
-  250 SUM=A(INDFM)*F(INTC)+SUM
-  260 CONTINUE
-  270 INDX1=INDX1+JRANGE
-C
-C
-C     RESTORE IEND, JEND, IRANGE, AND JRANGE.
-      IEND=UBOUND(LAMAX)
-      JEND=UBOUND(LBMAX)
-      IRANGE=IEND-ISTART+1
-      JRANGE=JEND-JSTART+1
-      F(1)=SUM
-      RETURN
-      END
-      SUBROUTINE RPOL1(N,X,TP2,WP2)
-C
-C     --------------------------
-C     GAUSSIAN 76 (QCPE VERSION)
-C     DECEMBER 1977
-C     CONTROL DATA 7600
-C     --------------------------
-C
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      DIMENSION TP2(1),WP2(1)
-C
-C     GIVEN N (ORDER OF THE RYS POLYNOMIAL) AND X (THE ARGUMENT TO
-C     THE F(M,T) ROUTINE), THIS ROUTINE USES COMMON/T2W2/ TO INTER-
-C     POLATE THE ROOTS AND WEIGHTS OF THE RYS POLYNOMIAL.
-C
-      COMMON/T2W21E/LENT(4),LIND(4),IADR(4),S(4),YCUT(4),T2(1030),W2(103
-     $0)
-      COMMON/HERM1E/HROOT2(10),HWEIGH(10)
-      COMMON/INTCON/F6I,F20I,F100
-      COMMON/INTK/ZERO,XINT(12)
-      EQUIVALENCE(ONE,XINT(1)),(FOUR,XINT(4))
-      COMMON/MTPC/  ATHETA,BTHETA,APHI,BPHI,CM1,C0,C1,C2,M
-      EQUIVALENCE(TH2,PH2,BT2,Y100)
-C**   DATA F100/100.0E0/
-      F100=100.
-C     GIVEN X, COMPUTE Y.
-      SX=S(N)*X
-      Y=SX/(ONE+SX)
-C
-C     TEST FOR POSSIBLE USE OF LARGE X FORMULA.
-      IF(Y-YCUT(N))10,30,30
-C
-C     MAP ONTO 100.
-   10 Y100=F100*Y
-      M=INT(Y100)
-      THETA=Y100- FLOAT(M)
-      PHI=ONE-THETA
-C
-C     COMPUTE POLYNOMIALS IN THETA AND PHI.
-      TH2=THETA*THETA
-      ATHETA=THETA*(TH2-ONE)*F6I
-      BTHETA=ATHETA*(TH2-FOUR)*F20I
-      PH2=PHI*PHI
-      APHI=PHI*(PH2-ONE)*F6I
-      BPHI=APHI*(PH2-FOUR)*F20I
-C
-C     COMPUTE INTERPOLATION COEFFICIENTS.
-      AT2=ATHETA+ATHETA
-      BT2=BTHETA+BTHETA
-      BT3=BT2+BTHETA
-      BT4=BT3+BTHETA
-      AP2=APHI+APHI
-      BP2=BPHI+BPHI
-      BP3=BP2+BPHI
-      BP4=BP3+BPHI
-      CM1=BTHETA-BP4+APHI
-      C0=PHI-BT4+(BP3+BP3)+ATHETA-AP2
-      C1=THETA+(BT3+BT3)-BP4-AT2+APHI
-      C2=BPHI+ATHETA-BT4
-C
-C     ALL REQUIRED INFORMATION IS NOW READY.  PERFORM INTERPOLATION.
-C     THIS STEP CREATES N ROOTS (SQUARED) AND N WEIGHTS.
-      IAD=IADR(N)
-      DO 20 I=1,N
-      TP2(I)=DINTRP(T2(IAD))
-      WP2(I)=DINTRP(W2(IAD))
-      WP2(I)= SQRT(WP2(I))
-   20 IAD=IAD+LENT(N)
-      RETURN
-C
-C
-C     COMPUTE RYS ROOTS AND WEIGHTS FOR LARGE X BY A HERMITE POLYNOMIAL
-C     APPROXIMATION.
-C     HROOT2 CONTAINS THE SQUARES OF THE ZEROES OF THE FIRST SEVEN
-C     EVEN HERMITE POLYNOMIALS.
-C     HWEIGH CONTAINS THE CORRESPONDING WEIGHTS (NOT SQUARED).
-   30 XI=ONE/X
-      XROOTI= SQRT(XI)
-      DO 40 I=1,N
-      IAD=LIND(N)+I
-      TP2(I)=HROOT2(IAD)*XI
-   40 WP2(I)=HWEIGH(IAD)*XROOTI
-      RETURN
-      END
-      FUNCTION DINTRP(TABLE)
-C
-C     --------------------------
-C     GAUSSIAN 76 (QCPE VERSION)
-C     DECEMBER 1977
-C     CONTROL DATA 7600
-C     --------------------------
-C
-C
-C***********************************************************************
-C     ROUTINE TO PERFORM EVERETT INTERPOLATION WITH THROW-BACK TO
-C     FOURTH ORDER USING TABLE.
-C***********************************************************************
-C
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      DIMENSION TABLE(6)
-C
-      COMMON/MTPC/  AT,BT,AP,BP,CM1,C0,C1,C2,M
-      EQUIVALENCE(CM2,BP),(C3,BT)
-C
-      X     =CM2*TABLE(M+1)+CM1*TABLE(M+2)+C0*TABLE(M+3)+C1*TABLE(M+4)+
-     $       C2*TABLE(M+5)+C3*TABLE(M+6)
-      DINTRP=X
-C
+      DT = A(M) / (A(1)**2 + A(2)**2 + A(3)**2)
+      DO 30 K = 1, 3
+         P(K) = DT * A(K)
+         B(K) = B(K) - P(K)
+   30 CONTINUE
+      CALL VNORM(B,B)
       RETURN
       END
       BLOCK DATA TOM
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       COMMON/HERM1E/HR(10),HW(10)
       COMMON/T2W21E/LENT(4),LIND(4),IADR(4),S(4),YCUT(4),T2(1030),
-     $ W2(1030)
+     1 W2(1030)
       DATA HR(   1)/.500000000000000E+00/,HW(   1)/.886226925452800E+00/
       DATA HR(   2)/.275255128608411E+00/,HW(   2)/.804914090005500E+00/
       DATA HR(   3)/.272474487139159E+01/,HW(   3)/.813128354472500E-01/
@@ -4925,7 +4928,7 @@ C
       DATA HR(   9)/.392696350135829E+01/,HW(   9)/.170779830074100E-01/
       DATA HR(  10)/.858863568901203E+01/,HW(  10)/.199604072211400E-03/
       DATA LIND/0,1,3,6/,LENT/4*103/,IADR/1,104,310,619/,YCUT/4*0.96999E
-     $0/
+     10/
       DATA T2(   1)/.340356529396388E+00/,W2(   1)/.105425787260118E+01/
       DATA T2(   2)/.336866892496096E+00/,W2(   2)/.102689779637686E+01/
       DATA T2(   3)/.333333333333333E+00/,W2(   3)/.100000000000000E+01/

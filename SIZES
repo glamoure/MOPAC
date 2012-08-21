@@ -10,9 +10,10 @@
 *     ISYBYL = 1 IF MOPAC IS TO BE USED IN THE SYBYL PACKAGE, =0 OTHERWISE
 *     SEE ALSO NMECI, NPULAY AND MESP AT THE END OF THIS FILE
 *                                                                       
-      PARAMETER (MAXHEV=70, MAXLIT=70)
+C     PARAMETER (MAXHEV=250, MAXLIT=200)
+      PARAMETER (MAXHEV=40, MAXLIT=40)
       PARAMETER (MAXTIM=3600, MAXDMP=3600)
-      PARAMETER (ISYBYL=1)
+      PARAMETER (ISYBYL=0)
 *                                                                       
 ************************************************************************
 *                                                                       

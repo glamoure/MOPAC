@@ -15,6 +15,15 @@
      3,GSSM(107),GSPM(107),GPPM(107),GP2M(107),HSPM(107), POLVOM(107)
       COMMON /KEYWRD/ KEYWRD
       COMMON/MULTIP/ DD(107),QQ(107),AM(107),AD(107),AQ(107)
+
+C* SHIHAO'S MODIFICATION START *************************************
+C* Added:
+C*  Additional user-defined parameters
+      COMMON /UDPAR/ UDEISOL(107),UDDD(107),UDQQ(107),UDRHO0(107),
+     1               UDRHO1(107),UDRHO2(107)
+      COMMON /MOLMEC/ HTYPE(4),NHCO(4,20),NNHCO,ITYPE
+C* SHIHAO'S MODIFICATION END ***************************************
+
       DIMENSION NSPQN(107)
       CHARACTER KEYWRD*241
       DIMENSION USSC(107), UPPC(107), GSSC(107), GSPC(107), HSPC(107),
@@ -103,27 +112,57 @@ C     SET SCALING PARAMETER.
       P4=P**4
       DO 30 I=2,98
          IF(ZP(I).LT.1.D-4.AND.ZS(I).LT.1.D-4)GOTO 30
+          IF(ZP(I).LT.0.3D0) ZP(I)=0.3D0
+CC  PUT IN ANY CONSTRAINTS AT THIS POINT
+C**********************************************************************
+          HPP=0.5D0*(GPP(I)-GP2(I))
+          HPP=MAX(0.1D0,HPP)
+          HSP(I)=MAX(1.D-7,HSP(I))
 **********************************************************************
 *
 *   CONSTRAINTS ON THE POSSIBLE VALUES OF PARAMETERS
 *
 **********************************************************************
-         IF(ZP(I).LT.0.3D0) ZP(I)=0.3D0
-C  PUT IN ANY CONSTRAINTS AT THIS POINT
-**********************************************************************
-         HPP=0.5D0*(GPP(I)-GP2(I))
-         HPP=MAX(0.1D0,HPP)
-         HSP(I)=MAX(1.D-7,HSP(I))
-         EISOL(I)=USS(I)*USSC(I)+UPP(I)*UPPC(I)+UDD(I)*UDDC(I)+
+C* SHIHAO'S MODIFICATION START ************************************
+C* Add
+         IF(ABS(UDEISOL(I)).LT.1.0D-6) THEN
+           EISOL(I)=USS(I)*USSC(I)+UPP(I)*UPPC(I)+UDD(I)*UDDC(I)+
      1         GSS(I)*GSSC(I)+GPP(I)*GPPC(I)+GSP(I)*GSPC(I)+
      2         GP2(I)*GP2C(I)+HSP(I)*HSPC(I)+GSD(I)*GSDC(I)+
      3         GDD(I)*GDDC(I)
+         ELSE
+           EISOL(I)=UDEISOL(I)
+         ENDIF
          QN=NSPQN(I)
-         DD(I)=(2.D0*QN+1)*(4.D0*ZS(I)*ZP(I))**(QN+0.5D0)/(ZS(I)+ZP(I))
-     1**(2.D0*QN+2)/SQRT(3.D0)
+
+         IF(ABS(UDDD(I)).LT.1.0D-6) THEN
+           DD(I)=(2.D0*QN+1)*(4.D0*ZS(I)*ZP(I))**(QN+0.5D0)
+     1       /(ZS(I)+ZP(I))**(2.D0*QN+2)/SQRT(3.D0)
+         ELSE
+           DD(I)=UDDD(I)
+         ENDIF
+
          DDM(I)=DD(I)
-         QQ(I)=SQRT((4.D0*QN*QN+6.D0*QN+2.D0)/20.D0)/ZP(I)
+
+         IF(ABS(UDQQ(I)).LT.1.0D-6) THEN
+           QQ(I)=SQRT((4.D0*QN*QN+6.D0*QN+2.D0)/20.D0)/ZP(I)
+         ELSE
+           QQ(I)=UDQQ(I)
+         ENDIF
+
          QQM(I)=QQ(I)
+C* Remove
+C         EISOL(I)=USS(I)*USSC(I)+UPP(I)*UPPC(I)+UDD(I)*UDDC(I)+
+C     1         GSS(I)*GSSC(I)+GPP(I)*GPPC(I)+GSP(I)*GSPC(I)+
+C     2         GP2(I)*GP2C(I)+HSP(I)*HSPC(I)+GSD(I)*GSDC(I)+
+C     3         GDD(I)*GDDC(I)
+C         QN=NSPQN(I)
+C         DD(I)=(2.D0*QN+1)*(4.D0*ZS(I)*ZP(I))**(QN+0.5D0)/(ZS(I)+ZP(I))
+C     1**(2.D0*QN+2)/SQRT(3.D0)
+C         DDM(I)=DD(I)
+C         QQ(I)=SQRT((4.D0*QN*QN+6.D0*QN+2.D0)/20.D0)/ZP(I)
+C         QQM(I)=QQ(I)
+C* SHIHAO'S MODIFICATION END **************************************
 C     CALCULATE ADDITIVE TERMS, IN ATOMIC UNITS.
          JMAX=5
          GDD1= (P2*HSP(I)/(27.21* 4.*DD(I)**2))**(1./3.)
@@ -154,17 +193,39 @@ C     CALCULATE ADDITIVE TERMS, IN ATOMIC UNITS.
             Q1= Q2
             Q2= Q3
    20    CONTINUE
+
          AM(I)= GSS(I)/27.21
          AD(I)= D2
          AQ(I)= Q2
+C* SHIHAO'S MODIFICATION START ************************************
+C* Add
+      IF(ABS(UDRHO0(I)).GT.1.0D-6) AM(I)=0.5/UDRHO0(I)
+      IF(ABS(UDRHO1(I)).GT.1.0D-6) AD(I)=0.5/UDRHO1(I)
+      IF(ABS(UDRHO2(I)).GT.1.0D-6) AQ(I)=0.5/UDRHO2(I)
+C* SHIHAO'S MODIFICATION END **************************************
          AMM(I)=AM(I)
          ADM(I)=AD(I)
          AQM(I)=AQ(I)
    30 CONTINUE
-      EISOL(1)=USS(1)
+C* SHIHAO'S MODIFICATION START ************************************
+C* Add
+      IF(ABS(UDEISOL(1)).LT.1.0D-6) THEN
+        EISOL(1)=USS(1)
+      ELSE
+        EISOL(1)=UDEISOL(1)
+      ENDIF
+C* Remove
+C      EISOL(1)=USS(1)
+C* SHIHAO'S MODIFICATION END **************************************
       AM(1)=GSS(1)/27.21D0
       AD(1)=AM(1)
       AQ(1)=AM(1)
+C* SHIHAO'S MODIFICATION START ************************************
+C* Add
+      IF(ABS(UDRHO0(1)).GT.1.0D-6) AM(1)=0.5/UDRHO0(1)
+      IF(ABS(UDRHO1(1)).GT.1.0D-6) AD(1)=0.5/UDRHO1(1)
+      IF(ABS(UDRHO2(1)).GT.1.0D-6) AQ(1)=0.5/UDRHO2(1)
+C* SHIHAO'S MODIFICATION END **************************************
       AMM(1)=AM(1)
       ADM(1)=AD(1)
       AQM(1)=AQ(1)

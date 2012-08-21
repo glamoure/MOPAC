@@ -83,6 +83,13 @@ C     PATAS
      1IPLOCH(1500),AS(1500),STOT,VOL,NSF,NC1(NUMATM)
       COMMON /FACTOR/ FACTOR
       COMMON /CLASES/ ICLASS(NUMATM)
+C**********************************************************************
+C* SHIHAO'S MODIFICATION START
+C* Added:
+      COMMON /MOLCONST/ CTYPE,ITORS(4),CVALUE
+C* SHIHAO'S MODIFICATION END
+C**********************************************************************
+
 C     PATAS
       LOGICAL INT, AIGEO, ISOK
       SAVE SPACE, SPACE2, IREACT, INT
@@ -247,6 +254,11 @@ C
       IF(INDEX(KEYWRD,'MINDO') .NE. 0) LINE='MINDO/3'
       IF(INDEX(KEYWRD,'AM1')   .NE. 0) LINE='    AM1'
       IF(INDEX(KEYWRD,'PM3')   .NE. 0) LINE='    PM3'
+C* SHIHAO MODIFICATION START ****************************************
+C* Added:
+      IF(INDEX(KEYWRD,'PDG')   .NE. 0) LINE='    PDG'
+      IF(INDEX(KEYWRD,'MDG')   .NE. 0) LINE='    MDG'
+C* SHIHAO MODIFICATION END ******************************************
       WRITE(6,'(/29X,A,'' CALCULATION RESULTS'',28X,///1X,15(''*****'')
      1,''****'' )')LINE(:7)
       WRITE(6,'('' *'',10X,''MOPAC:  VERSION '',F5.2,
@@ -504,6 +516,23 @@ C
       CALL NUCHAR (LINE,VALUE,NVALUE)
       FACTOR=VALUE(1)*ONE
       ENDIF
+
+C* SHIHAO MODIFICATION START ****************************************
+C* Added:
+      IF(INDEX(KEYWRD,'CONST').NE.0)THEN
+        READ(5,'(A)') LINE
+        PI=3.1415926536D0
+        CALL NUCHAR (LINE,VALUE,NVALUE)
+        IF(NVALUE.EQ.5) THEN
+          ITORS(1)=VALUE(1)
+          ITORS(2)=VALUE(2)
+          ITORS(3)=VALUE(3)
+          ITORS(4)=VALUE(4)
+          CVALUE=VALUE(5)/180.0*PI
+          CTYPE=3
+        ENDIF
+      ENDIF
+C* SHIHAO MODIFICATION END ******************************************
 C     PATAS
 C
 C OUTPUT GEOMETRY AS FEEDBACK

@@ -12,6 +12,12 @@
       COMMON /TIMDMP/ TLEFT, TDUMP
       LOGICAL UHF, TRIP, BIRAD, EXCI, CI, MYWORD
       LOGICAL AM1, MNDO, MINDO3, PM3
+C**********************************************************************
+C* SHIHAO'S MODIFICATION START
+C* Added:
+      LOGICAL PDG,MDG
+C* SHIHAO'S MODIFICATION END
+C**********************************************************************
       CHARACTER CH*1, CHRONO*7
       SAVE AM1, MNDO, MINDO3
       DATA AM1, MNDO, MINDO3, PM3 /4*.FALSE./
@@ -101,6 +107,23 @@ C
       IF (MYWORD(ALLKEY,'CONNOLLY') ) WRITE(6,790)
       IF (MYWORD(ALLKEY,'ESPRST') ) WRITE(6,800)
       IF (MYWORD(ALLKEY,' POTWRT') ) WRITE(6,810)
+C
+C     KEYWORDS ADDED FOR COSMO MOPAC
+C
+      IF (MYWORD(ALLKEY,'RSOLV') ) WRITE(6,1640)
+      IF (MYWORD(ALLKEY,'EPS') ) WRITE(6,1650)
+      IF (MYWORD(ALLKEY,'DELSC') ) WRITE(6,1660)
+      IF (MYWORD(ALLKEY,'DISEX') ) WRITE(6,1670)
+      IF (MYWORD(ALLKEY,'NSPA') ) WRITE(6,1680)
+
+C**********************************************************************
+C* SHIHAO'S MODIFICATION START
+C* Added:
+C     KEYWORDS ADDED FOR CONSTRAINT
+      IF (MYWORD(ALLKEY,'CONST') ) WRITE(6,1690)
+C* SHIHAO'S MODIFICATION END
+C**********************************************************************
+
 C
 C                       KEYWORDS ADDED FOR PMEP BY BINGZE WANG AUG 1993
 C
@@ -297,6 +320,21 @@ C                                       END OF PMEP ADDITION BY B WANG
          PM3=.TRUE.
          METHOD=METHOD+1
       ENDIF
+C**********************************************************************
+C* SHIHAO'S MODIFICATION START
+C* Added:
+      IF (MYWORD(ALLKEY,'PDG') ) THEN
+         WRITE(6,1165)
+         PDG=.TRUE.
+         METHOD=METHOD+1
+      ENDIF
+      IF (MYWORD(ALLKEY,'MDG') ) THEN
+         WRITE(6,1166)
+         MDG=.TRUE.
+         METHOD=METHOD+1
+      ENDIF
+C* SHIHAO'S MODIFICATION END
+C**********************************************************************
       IF (MYWORD(ALLKEY,'MNDO') ) THEN
          MNDO=.TRUE.
          METHOD=METHOD+1
@@ -598,6 +636,8 @@ C
  1140 FORMAT(' *  MINDO/3  - THE MINDO/3 HAMILTONIAN TO BE USED')
  1150 FORMAT(' *  AM1      - THE AM1 HAMILTONIAN TO BE USED')
  1160 FORMAT(' *  PM3      - THE PM3 HAMILTONIAN TO BE USED')
+ 1165 FORMAT(' *  PDG      - THE PDDG/PM3 HAMILTONIAN TO BE USED')
+ 1166 FORMAT(' *  MDG      - THE PDDG/MNDO HAMILTONIAN TO BE USED')
  1170 FORMAT(' *  PRECISE  - CRITERIA TO BE INCREASED BY 100 TIMES')
  1180 FORMAT(' *  OLDGEO   - PREVIOUS GEOMETRY TO BE USED')
  1190 FORMAT(' *  NOINTER  - INTERATOMIC DISTANCES NOT TO BE PRINTED')
@@ -654,4 +694,17 @@ C     KEYWORDS FOR MIERTUS-SCROCCO-TOMASI MODEL
  1620 FORMAT(' *  TOM      - MIERTUS-SCROCCO-TOMASI SOLVATION MODEL')
  1630 FORMAT(' *  JIALI    - DETAILS OF MST COMPUTATION')
 C     PATAS
+C     COSMO
+ 1640 FORMAT(' *  RSOLV    - EFFECTIVE VAN DER WAALS RADIUS OF SOLVENT')
+ 1650 FORMAT(' *  EPS      - DIELECTRIC CONSTANT OF SOLVENT')
+ 1660 FORMAT(' *  DELSC    - EFFECTIVE CHARGE RADIUS OF SOLVENT')
+ 1670 FORMAT(' *  DISEX    - DISTANCE OF SOLVENT INTERACTION')
+ 1680 FORMAT(' *  NSPA     - NUMBER OF SEGMENTS PER ATOM')
+C**********************************************************************
+C* SHIHAO'S MODIFICATION START
+C* Added:
+ 1690 FORMAT(' *  CONST     - WITH CONSTRAINT')
+C* SHIHAO'S MODIFICATION END
+C**********************************************************************
+C     COSMO
       END

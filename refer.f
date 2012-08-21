@@ -2,7 +2,14 @@
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       INCLUDE 'SIZES'
       COMMON
-     1       /REFS/ ALLREF(107,4)
+C**********************************************************************
+C* SHIHAO'S MODIFICATION START
+C* Removed:
+C     1       /REFS/ ALLREF(107,4)
+C* Added:
+     1       /REFS/ ALLREF(107,6)
+C* SHIHAO'S MODIFICATION END
+C**********************************************************************
      2       /MOLKST/ NUMAT,NAT(NUMATM),NFIRST(NUMATM),NMIDLE(NUMATM),
      3                NLAST(NUMATM), NORBS, NELECS,NALPHA,NBETA,
      4                NCLOSE,NOPEN,NDUMY,FRACT

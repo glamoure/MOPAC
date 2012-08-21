@@ -49,6 +49,15 @@ C***********************************************************************
       COMMON /ROTDUM/ CSS1,CSP1,CPPS1,CPPP1,CSS2,CSP2,CPPS2,CPPP2
       COMMON /ROTDU2/ X(3),Y(3),Z(3)
       COMMON /KEYWRD/ KEYWRD
+C**********************************************************************
+C* SHIHAO'S MODIFICATION START
+C* Added:
+      COMMON /PDDG/  PGF1(107,10), PGF2(107,10),PGF3(107,10)
+      COMMON /PWGFP/ PWGF1(10,2), PWGF2(10,2),PWGF3(10,2),
+     1               PWGFIJ(10)
+
+C* SHIHAO'S MODIFICATION END
+C**********************************************************************
 C     PATAS
       COMMON /MSTQ/ QS(1500),MFLAG
 C     PATAS
@@ -723,7 +732,14 @@ C   NK IS THE ATOMIC NUMBER OF THE NON-BORON ATOM
                FN2(5,I)=BORON2(I,NL)
    30       FN3(5,I)=BORON3(I,NL)
          ENDIF
-         IF(ITYPE.EQ.2.OR.ITYPE.EQ.3) THEN
+C**********************************************************************
+C* SHIHAO'S MODIFICATION START
+C* Removed:
+C          IF(ITYPE.EQ.2.OR.ITYPE.EQ.3) THEN
+C* Added:
+         IF(ITYPE.EQ.2.OR.ITYPE.EQ.3.OR.ITYPE.EQ.5) THEN
+C* SHIHAO'S MODIFICATION END
+C**********************************************************************
             DO 40 IG=1,10
                IF(ABS(FN1(NI,IG)).GT.0.D0) THEN
                   AX = FN2(NI,IG)*(RIJ-FN3(NI,IG))**2
@@ -741,7 +757,47 @@ C   NK IS THE ATOMIC NUMBER OF THE NON-BORON ATOM
                ENDIF
    40       CONTINUE
          ENDIF
-         ENUC=ENUC+SCALE
+C**********************************************************************
+C* SHIHAO'S MODIFICATION START
+C* Removed:
+C         ENUC=ENUC+SCALE
+C* Added:
+         IF (ITYPE.EQ.5.OR.ITYPE.EQ.6) THEN
+C       WRITE(6,*) ITYPE,NI,PGF1(NI,1), PGF1(NI,2), PGF2(NI,1), 
+C     1         PGF1(NI,2),RIJ
+C       WRITE(6,*) ITYPE,NJ,PGF1(NJ,1), PGF1(NJ,2), PGF2(NJ,1), 
+C     1         PGF2(NJ,2),RIJ
+C
+C THE PDDG FUNCTION HAS BEEN ADDED FOR THE PDDG METHODS
+C
+            ZAF=TORE(NI)/(TORE(NI)+TORE(NJ))
+            ZBF=TORE(NJ)/(TORE(NI)+TORE(NJ))
+            QCORR =
+     1 (ZAF*PGF1(NI,1)+ZBF*PGF1(NJ,1))*EXP(-10.0D0*(RIJ-PGF2(NI,1)-
+     2        PGF2(NJ,1))**2)+
+     3 (ZAF*PGF1(NI,1)+ZBF*PGF1(NJ,2))*EXP(-10.0D0*(RIJ-PGF2(NI,1)-
+     4        PGF2(NJ,2))**2)+
+     5 (ZAF*PGF1(NI,2)+ZBF*PGF1(NJ,1))*EXP(-10.0D0*(RIJ-PGF2(NI,2)-
+     6        PGF2(NJ,1))**2)+
+     7 (ZAF*PGF1(NI,2)+ZBF*PGF1(NJ,2))*EXP(-10.0D0*(RIJ-PGF2(NI,2)-
+     8        PGF2(NJ,2))**2)
+         ELSE
+            QCORR = 0.0D0
+         ENDIF
+         
+C* Add pairwise gaussian functions
+         PCORR = 0.0D0
+         IF(NI.GT.NJ) GOTO 60
+         DO 50 I=1,10
+            IF(PWGFIJ(I).EQ.0) GOTO 60
+            IELMNT=NI*1000+NJ
+            IF(PWGFIJ(I).EQ.IELMNT) THEN
+               PCORR=PCORR+PWGF1(I,1)*EXP(-PWGF2(I,1)*(RIJ-PWGF3(I,1)))
+            ENDIF
+   50    CONTINUE
+   60    ENUC=ENUC+SCALE+QCORR+PCORR
+C* SHIHAO'S MODIFICATION END
+C**********************************************************************
 C
          IF(NATORB(NI)*NATORB(NJ).EQ.0)KI=0
          KR=KR+KI

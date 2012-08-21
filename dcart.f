@@ -21,6 +21,13 @@ C***********************************************************************
       COMMON /UCELL / L1L,L2L,L3L,L1U,L2U,L3U
       COMMON /DCARTC/ K1L,K2L,K3L,K1U,K2U,K3U
       COMMON /NUMCAL/ NUMCAL
+C**********************************************************************
+C* SHIHAO'S MODIFICATION START
+C* Added:
+      COMMON /MOLCONST/ CTYPE,ITORS(4),CVALUE
+C* SHIHAO'S MODIFICATION END
+C**********************************************************************
+
 C COSMO change
       LOGICAL ISEPS, USEPS , UPDA
       COMMON /ISEPS/  ISEPS, USEPS, UPDA
@@ -167,6 +174,40 @@ C
   150       CONTINUE
   160    CONTINUE
       ENDIF
+
+C**********************************************************************
+C* SHIHAO'S MODIFICATION START
+C* Added:
+      DEL=1.D-8
+      PI=3.1415926536D0
+       DO 155 J=1,4
+        DO 145 K=1,3
+         COORD(K,ITORS(J))=COORD(K,ITORS(J))-DEL
+         CALL DIHED(COORD,ITORS(1),ITORS(2),ITORS(3),ITORS(4)
+     1,ANGLE)
+         ANGDIFF=DABS(ANGLE-CVALUE)
+         IF(ANGDIFF.GE.PI) THEN
+            ANGDIFF=ANGDIFF-2.0*PI
+         ENDIF
+         REFH=5000.0*ANGDIFF**2
+         WRITE(6,*)'SWDEBUG',ANGLE,CVALUE
+         COORD(K,ITORS(J))=COORD(K,ITORS(J))+DEL*2.D0
+         CALL DIHED(COORD,ITORS(1),ITORS(2),ITORS(3),ITORS(4)
+     1,ANGLE)
+         COORD(K,ITORS(J))=COORD(K,ITORS(J))-DEL
+         ANGDIFF=DABS(ANGLE-CVALUE)
+         IF(ANGDIFF.GE.PI) THEN
+           ANGDIFF=ANGDIFF-2.0*PI
+         ENDIF
+         HEAT=5000.0*ANGDIFF**2
+         SUM=(REFH-HEAT)/(2.D0*DEL)
+         DXYZ(K,ITORS(J))=DXYZ(K,ITORS(J))-SUM
+145     CONTINUE
+155    CONTINUE
+C* SHIHAO'S MODIFICATION END
+C**********************************************************************
+
+
 C COSMO change A. Klamt
 C analytic calculation of the gradient of the dielectric energy A.Klamt
       IF (USEPS) CALL DIEGRD(COORD,DXYZ)

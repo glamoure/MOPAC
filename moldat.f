@@ -23,7 +23,15 @@
      6       /IDEAS / GUESS1(107,10),GUESS2(107,10),GUESS3(107,10)
      7       /IDEAP / GUESP1(107,10),GUESP2(107,10),GUESP3(107,10)
       COMMON /ALPHA / ALP(107)
-     1       /REFS/ ALLREF(107,4)
+C**********************************************************************
+C* SHIHAO'S MODIFICATION START
+C* Removed:
+C     1       /REFS/ ALLREF(107,4)
+C* Added:
+     1       /REFS/ ALLREF(107,6)
+C*      COMMON /MOLCONST/ CTYPE,ITORS(4),CVALUE
+C* SHIHAO'S MODIFICATION END
+C**********************************************************************
       COMMON /MNDO/  USSM(107), UPPM(107), UDDM(107), ZSM(107),
      1ZPM(107), ZDM(107), BETASM(107), BETAPM(107), BETADM(107),
      2ALPM(107), EISOLM(107), DDM(107), QQM(107), AMM(107),
@@ -53,10 +61,39 @@
 *
       COMMON /EXPONT/ ZS(107),ZP(107),ZD(107)
       COMMON /ATOMIC/ EISOL(107),EHEAT(107)
+C**********************************************************************
+C* SHIHAO'S MODIFICATION START
+C ---------------------------------------------------------------------
+C     COMMON BLOCKS FOR PDDG METHODS
+C     (INTRODUCED BY MATT REPASKY APRIL 02)
+C ---------------------------------------------------------------------
+      COMMON /PDDGP/  USSPDG(107), UPPPDG(107), UDDPDG(107), ZSPDG(107),
+     1ZPPDG(107), ZDPDG(107), BETASG(107), BETAPG(107), BETADG(107),
+     2ALPPDG(107), EISOLG(107), DDPDG(107), QQPDG(107), AMPDG(107),
+     3ADPDG(107), AQPDG(107) ,GSSPDG(107), GSPPDG(107), GPPPDG(107),
+     4GP2PDG(107), HSPPDG(107),POLVOG(107),PAPDG(107),PBPDG(107),
+     5DAPDG(107),DBPDG(107)
+      COMMON /IDEAG / GUESG1(107,10),GUESG2(107,10),GUESG3(107,10)
+     1               ,NGUESG(107)
+      COMMON /PDDGM/  USSMDG(107), UPPMDG(107), UDDMDG(107), ZSMDG(107),
+     1ZPMDG(107), ZDMDG(107), BETASH(107), BETAPH(107), BETADH(107),
+     2ALPMDG(107), EISOLH(107), DDMDG(107), QQMDG(107), AMMDG(107),
+     3ADMDG(107), AQMDG(107) ,GSSMDG(107), GSPMDG(107), GPPMDG(107),
+     4GP2MDG(107), HSPMDG(107),POLVOH(107),PAMDG(107),PBMDG(107),
+     5DAMDG(107),DBMDG(107)
+      COMMON /PDDG/  PGF1(107,10), PGF2(107,10),PGF3(107,10)
+C* SHIHAO'S MODIFICATION END
+C**********************************************************************
       DIMENSION COORD(3,NUMATM), ISWAP(2,20), ESTORE(107)
       CHARACTER*241 KEYWRD, OLDE(20)*6, ALLREF*80
       LOGICAL DEBUG, UHF,EXCI, TRIP, MINDO3, BIRAD, AM1, LPM3,
      1LMNDO, HALFE, SLOW
+C**********************************************************************
+C* SHIHAO'S MODIFICATION START
+C* Added:
+      LOGICAL LPDG, LMDG
+C* SHIHAO'S MODIFICATION END
+C**********************************************************************
       DATA ESTORE(1)/0.D0/
       IF(ESTORE(1).EQ.0.D0)THEN
       DO 9 I=1,107
@@ -69,7 +106,16 @@
       MINDO3= (INDEX(KEYWRD,'MINDO').NE.0)
       UHF=(INDEX(KEYWRD,'UHF') .NE. 0)
       AM1= (INDEX(KEYWRD,'AM1').NE.0)
-      LMNDO=(.NOT.AM1.AND..NOT.LPM3)
+C**********************************************************************
+C* SHIHAO'S MODIFICATION START
+C* Removed:
+C       LMNDO=(.NOT.AM1.AND..NOT.LPM3)
+C* Added:
+      LPDG  = (INDEX(KEYWRD,'PDG').NE.0)
+      LMDG  = (INDEX(KEYWRD,'MDG').NE.0)
+      LMNDO=(.NOT.AM1.AND..NOT.LPM3.AND..NOT.LPDG.AND..NOT.LMDG)
+C* SHIHAO'S MODIFICATION END
+C**********************************************************************
       KHARGE=0
       I=INDEX(KEYWRD,'CHARGE')
       IF(I.NE.0) KHARGE=READA(KEYWRD,I)
@@ -144,6 +190,83 @@ C
             GP2(I)=GP2PM3(I)
             HSP(I)=HSPPM3(I)
    30    CONTINUE
+C**********************************************************************
+C* SHIHAO'S MODIFICATION START
+C* Added:
+      ELSEIF(LPDG) THEN
+*
+*    SWITCH IN PDDG/PM3 PARAMETERS
+*
+         DO 32 I=1,107
+            DO 22 J=1,10
+               GUESS1(I,J)=GUESG1(I,J)
+               GUESS2(I,J)=GUESG2(I,J)
+   22       GUESS3(I,J)=GUESG3(I,J)
+            POLVOL(I)=POLVOG(I)
+            ZS(I)=ZSPDG(I)
+            ZP(I)=ZPPDG(I)
+            ZD(I)=ZDPDG(I)
+            USS(I)=USSPDG(I)
+            UPP(I)=UPPPDG(I)
+            UDD(I)=UDDPDG(I)
+            BETAS(I)=BETASG(I)
+            BETAP(I)=BETAPG(I)
+            BETAD(I)=BETADG(I)
+            ALP(I)=ALPPDG(I)
+            EISOL(I)=EISOLG(I)
+            DD(I)=DDPDG(I)
+            QQ(I)=QQPDG(I)
+            AM(I)=AMPDG(I)
+            AD(I)=ADPDG(I)
+            AQ(I)=AQPDG(I)
+            GSS(I)=GSSPDG(I)
+            GPP(I)=GPPPDG(I)
+            GSP(I)=GSPPDG(I)
+            GP2(I)=GP2PDG(I)
+            HSP(I)=HSPPDG(I)
+            PGF1(I,1)=PAPDG(I)
+            PGF1(I,2)=PBPDG(I)
+            PGF2(I,1)=DAPDG(I)
+            PGF2(I,2)=DBPDG(I)     
+            PGF3(I,1)=10.0D0
+            PGF3(I,2)=10.0D0
+   32    CONTINUE
+      ELSEIF(LMDG) THEN
+*
+*    SWITCH IN PDDG/MNDO PARAMETERS
+*
+         DO 33 I=1,107
+            POLVOL(I)=POLVOH(I)
+            ZS(I)=ZSMDG(I)
+            ZP(I)=ZPMDG(I)
+            ZD(I)=ZDMDG(I)
+            USS(I)=USSMDG(I)
+            UPP(I)=UPPMDG(I)
+            UDD(I)=UDDMDG(I)
+            BETAS(I)=BETASH(I)
+            BETAP(I)=BETAPH(I)
+            BETAD(I)=BETADH(I)
+            ALP(I)=ALPMDG(I)
+            EISOL(I)=EISOLH(I)
+            DD(I)=DDMDG(I)
+            QQ(I)=QQMDG(I)
+            AM(I)=AMMDG(I)
+            AD(I)=ADMDG(I)
+            AQ(I)=AQMDG(I)
+            GSS(I)=GSSMDG(I)
+            GPP(I)=GPPMDG(I)
+            GSP(I)=GSPMDG(I)
+            GP2(I)=GP2MDG(I)
+            HSP(I)=HSPMDG(I)
+            PGF1(I,1)=PAMDG(I)
+            PGF1(I,2)=PBMDG(I)
+            PGF2(I,1)=DAMDG(I)
+            PGF2(I,2)=DBMDG(I)
+            PGF3(I,1)=10.0D0
+            PGF3(I,2)=10.0D0
+   33    CONTINUE   
+C* SHIHAO'S MODIFICATION END
+C**********************************************************************
       ELSE
 *
 *    SWITCH IN AM1 PARAMETERS
@@ -576,6 +699,26 @@ C
       IF(INDEX(KEYWRD,'AM1').NE.0)ITYPE=2
       IF(INDEX(KEYWRD,'PM3').NE.0)ITYPE=3
       IF(INDEX(KEYWRD,'MINDO').NE.0)ITYPE=4
+C**********************************************************************
+C* SHIHAO'S MODIFICATION START
+C* Added:
+      IF(INDEX(KEYWRD,'PDG').NE.0)ITYPE=5
+      IF(INDEX(KEYWRD,'MDG').NE.0)ITYPE=6
+
+C* Add constraints
+C* Default value for CTYPE is 0: no constraint.
+C*          1: Bond
+C*          2: Angle
+C*          3: Dihedral
+C*      CTYPE = 0
+C*      CTYPE = 3
+C*      CVALUE = 90.0/180.0*3.14159265
+C*      ITORS(1)=4
+C*      ITORS(2)=3
+C*      ITORS(3)=1
+C*      ITORS(4)=2
+C* SHIHAO'S MODIFICATION END
+C**********************************************************************
 C
 C   IDENTIFY O=C-N-H SYSTEMS VIA THE INTERATOMIC DISTANCES MATRIX
       DO 220 I=1,NUMAT

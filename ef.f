@@ -50,7 +50,7 @@ CONVEX      COMMON /SCRACH/ PVEC
      $U(MAXPAR,MAXPAR),DD,rmin,rmax,omin,xlamd,xlamd0,skal,
      $MODE,NSTEP,NEGREQ,IPRNT
       COMMON/THREADS/NUM_THREADS
-      COMMON/FLUSH/NFLUSH
+      COMMON/FLUSHX/NFLUSH
 
       DIMENSION IPOW(9), EIGVAL(MAXPAR),TVEC(MAXPAR),SVEC(MAXPAR),
      1FX(MAXPAR),HESSC(MAXHES),UC(MAXPAR**2),oldfx(maxpar),
@@ -562,6 +562,9 @@ C
      $MODE,NSTEP,NEGREQ,IPRNT
       DIMENSION IPOW(9)               
       LOGICAL RESTRT,SCF1,LDUM,LUPD,log,rrscal,donr,gnmin 
+C ***** Added    by Jiro Toyoda at 1994-05-25 *****
+      LOGICAL LIMSCF
+C ***************************** at 1994-05-25 *****
       CHARACTER*241 KEYWRD,LINE                                               
       CHARACTER CHDOT*1,ZERO*1,NINE*1,CH*1
       DATA CHDOT,ZERO,NINE   /'.','0','9'/                     
@@ -613,7 +616,7 @@ C     GET ALL INITIALIZATION DATA
          IF(IP.NE.0) IPRNT=READA(KEYWRD,IP) 
          IF(IPRNT.GT.5)IPRNT=5                                                  
          IF(IPRNT.LT.0)IPRNT=0                                                  
-         MXSTEP=100                                                             
+         MXSTEP=2000                                                             
          I=INDEX(KEYWRD,' CYCLES=')                                             
          IF(I.NE.0) MXSTEP=READA(KEYWRD,I)                                      
 	 IF (I.NE.0 .AND. MXSTEP.EQ.0 .AND. IP.EQ.0) IPRNT=3

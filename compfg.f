@@ -153,7 +153,7 @@ C COSMO change A. Klamt 18.7.91
       ENDIF
       IF (ISEPS) THEN
 C The following routine constructs the dielectric screening surface
-           CALL CONSTS (COORD)
+           CALL CONSTS (COORD,.TRUE.)
 C The following routine constructs dielectric response matrix CCMAT
         CALL BTOC (COORD)
 C A. Klamt 18.7.91

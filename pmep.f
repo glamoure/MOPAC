@@ -173,7 +173,6 @@ C
       CHARACTER*241 KEYWRD
       DIMENSION VANDER(100),CON(3,1000),ias(mxmep),RAD(MXMEP),
      1          co(3,*),POTPT(3,*)
-      data scale/1.4d0/,dens/1.0d0/,scincr/0.20d0/,layer/4/
 C
 C     NEIGHBOR ARRAYS
 C
@@ -193,6 +192,7 @@ C                                                     LOGICAL FUNCTIONS
       LOGICAL COLLIS
 C                                            DATA FOR VANDER VALL RADII
       CHARACTER MARKER*3, MARKSS*3, MYNAM*3, IELDAT*4, NAMATM*4
+      data scale/1.4d0/,dens/1.0d0/,scincr/0.20d0/,layer/4/
       DATA VANDER/1.20D0,1.20D0,1.37D0,1.45D0,1.45D0,1.50D0,1.50D0,
      1            1.40D0,1.35D0,1.30D0,1.57D0,1.36D0,1.24D0,1.17D0,
      2            1.80D0,1.75D0,1.70D0,17*0.0D0,2.3D0,65*0.0D0/
@@ -763,10 +763,10 @@ c
       dimension pp(nonzox),w(3),c1(3,*),
      1          r0(3),t(3,3),ria(numatm),mx(numatm),my(numatm),
      1          vmin(numatm),cw(3,numatm),uu(200),rk(3),cmep(3,numatm)
+      logical prtmep,minmep
       data t/1.0d0,3*0.0d0,1.0d0,3*0.0d0,1.0d0/
       data step/0.1d0/,need1/0/,natm/0/,r0/3*0.0d0/,iw/7/,cut/999.0d0/
       data icase/0/,z0/0.0d0/,iback/0/
-      logical prtmep,minmep
       write(6,15)
 15    format(///13x,'MOLCULAR ELECTROSTATIC POTENTIAL',
      1 //1x,'REFERENCES  B.WANG AND G.P.FORD J.COMPT.CHEM. IN PRESS',
