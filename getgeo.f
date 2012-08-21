@@ -1,9 +1,9 @@
-      SUBROUTINE GETGEO(IREAD,LABELS,GEO,LOPT,NA,NB,NC,AMS,NATOMS,INT)
+      SUBROUTINE GETGEO(IREAD,LABELS,GEO,LOPT,NA,NB,NC,AMS,NATOMS,INTR)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       INCLUDE 'SIZES'
-      DIMENSION GEO(3,*),NA(*),NB(*),NC(*),AMS(*), LOPT(3,*)
+      DIMENSION GEO(3,*),NA(*),NB(*),NC(*),AMS(*), LOPT(3,NUMATM)
      1,LABELS(*)
-      LOGICAL INT
+      LOGICAL INTR
 ************************************************************************
 *
 *   GETGEO READS IN THE GEOMETRY. THE ELEMENT IS SPECIFIED BY IT'S
@@ -13,7 +13,7 @@
 *             AMS    = DEFAULT ATOMIC MASSES.
 *
 * ON OUTPUT LABELS = ATOMIC NUMBERS OF ALL ATOMS, INCLUDING DUMMIES.
-*           GEO    = INTERNAL COORDINATES, IN ANGSTROMS, AND DEGREES.
+*           GEO    = INTERNAL COORDINATES, IN ANGSTROMS, AND RADIANS.
 *           LOPT   = INTEGER ARRAY, A '1' MEANS OPTIMIZE THIS PARAMETER,
 *                    '0' MEANS DO NOT OPTIMIZE, AND A '-1' LABELS THE
 *                    REACTION COORDINATE.
@@ -28,10 +28,17 @@
       COMMON /ATOMTX/ LTXT, TXTATM(NUMATM)
       COMMON /KEYWRD/ KEYWRD
       DIMENSION ISTART(40), XYZ(3,NUMATM), VALUE(4)
-      LOGICAL LEADSP, IRCDRC
+C       Laurent Modification
+      INTEGER ICONXN(6,NUMATM),CONX(4),TRLB, ROTB, ROTD, ATMS
+      DOUBLE PRECISION INFINT
+      DOUBLE PRECISION TMPC(8), VALS(3,NUMATM)
+C       End Laurent
+      LOGICAL LEADSP, IRCDRC, APPLIED
       CHARACTER KEYWRD*241, TXTATM*8, SIMBOL*10, LTXT*1
       CHARACTER ELEMNT(107)*2, LINE*80, SPACE*1, NINE*1,ZERO*1,
      1TAB*1, COMMA*1, STRING*80, ELE*2, TURN*1
+
+
       SAVE ELEMNT, COMMA, SPACE, NINE, ZERO
       DATA (ELEMNT(I),I=1,107)/'H','HE',
      1 'LI','BE','B','C','N','O','F','NE',
@@ -59,7 +66,27 @@
       DO 10 I=1,MAXPAR
    10 SIMBOL(I)= '---'
    20 READ(IREAD,'(A)',END=130,ERR=230)LINE
-      IF(LINE.EQ.' ') GO TO 130
+C       Laurent Modification: To allow for cartesian coordinates to be read in with internal constraints
+C      IF(LINE.EQ.' ') GOTO 130
+C       Added
+      IF(LINE.EQ.' ')THEN
+       IF(INDEX(KEYWRD,'ALTCON').EQ.0)THEN
+        GOTO 130
+       ELSE
+        CALL RALTCON(IREAD,LOPT)
+        LOPT(1,1)=0
+        LOPT(2,1)=0
+        LOPT(3,1)=0
+!        LOPT(1,2)=MIN(LOPT(1,2),1)
+        LOPT(2,2)=0
+        LOPT(3,2)=0
+!        LOPT(1,3)=MIN(LOPT(1,3),1)
+!        LOPT(2,3)=MIN(LOPT(2,3),1)
+        LOPT(3,3)=0
+        GOTO 130
+       ENDIF
+      ENDIF
+C       End Laurent
       NATOMS=NATOMS+1
 C
 C   SEE IF TEXT IS ASSOCIATED WITH THIS ELEMENT
@@ -107,7 +134,10 @@ C
             ISTART(NVALUE)=I
          END IF
          LEADSP=(LINE(I:I).EQ.SPACE)
-      IF(LEADSP.AND.NATOMS.EQ.1.AND.NVALUE.EQ.1)LINE(I:)=' '
+C       Laurent Modification: THis makes it so the first line is completely ignored
+C       Removed:
+C      IF(LEADSP.AND.NATOMS.EQ.1.AND.NVALUE.EQ.1)LINE(I:)=' '
+C       End Laurent
    60 CONTINUE
 *
 * ESTABLISH THE ELEMENT'S NAME AND ISOTOPE, CHECK FOR ERRORS OR E.O.DATA
@@ -167,10 +197,16 @@ C
      1NUMATM
          STOP
       ENDIF
-      LABELS(NATOMS)   =LABEL
-      GEO(1,NATOMS)    =READA(LINE,ISTART(2))
-      GEO(2,NATOMS)    =READA(LINE,ISTART(4))
-      GEO(3,NATOMS)    =READA(LINE,ISTART(6))
+             LABELS(NATOMS)   =LABEL
+      IF(INDEX(KEYWRD,'ALTCON').EQ.0)THEN
+       GEO(1,NATOMS)    =READA(LINE,ISTART(2))
+       GEO(2,NATOMS)    =READA(LINE,ISTART(4))
+       GEO(3,NATOMS)    =READA(LINE,ISTART(6))
+      ELSE
+       GEO(1,NATOMS)    =READA(LINE,ISTART(2))
+       GEO(2,NATOMS)    =READA(LINE,ISTART(3))
+       GEO(3,NATOMS)    =READA(LINE,ISTART(4))
+      ENDIF
       IF(IRCDRC)THEN
          TURN=LINE(ISTART(3):ISTART(3))
          IF(TURN.EQ.'T')THEN
@@ -193,9 +229,30 @@ C
             LOPT(3,NATOMS)=0
          ENDIF
       ELSE
-         LOPT(1,NATOMS)   =READA(LINE,ISTART(3))
-         LOPT(2,NATOMS)   =READA(LINE,ISTART(5))
-         LOPT(3,NATOMS)   =READA(LINE,ISTART(7))
+         IF(INDEX(KEYWRD,'ALTCON').EQ.0)THEN
+          LOPT(1,NATOMS)   =READA(LINE,ISTART(3))
+          LOPT(2,NATOMS)   =READA(LINE,ISTART(5))
+          LOPT(3,NATOMS)   =READA(LINE,ISTART(7))
+         ELSE
+!            IF(NATOMS.EQ.1)THEN
+!                LOPT(1,NATOMS)=0
+!                LOPT(2,NATOMS)=0
+!                LOPT(3,NATOMS)=0
+!            ELSEIF(NATOMS.EQ.2)THEN
+!                LOPT(1,NATOMS)=1
+!                LOPT(2,NATOMS)=0
+!                LOPT(3,NATOMS)=0
+!            ELSEIF(NATOMS.EQ.3)THEN
+!                LOPT(1,NATOMS)=1
+!                LOPT(2,NATOMS)=1
+!                LOPT(3,NATOMS)=0
+!            ELSE
+                LOPT(1,NATOMS)=1
+                LOPT(2,NATOMS)=1
+                LOPT(3,NATOMS)=1
+!            ENDIF
+
+         ENDIF
          DO 90 I=3,7,2
             IF(ICHAR(LINE(ISTART(I):ISTART(I))).GE.ICAPA.AND.
      1ICHAR(LINE(ISTART(I):ISTART(I))).LE.ICAPZ)ISERR=1
@@ -254,19 +311,19 @@ C
   130 NA(2)=1
       LTXT=CHAR(MAXTXT)
       IF(NATOMS.GT.3)THEN
-         INT=(NA(4).NE.0)
+         INTR=(NA(4).NE.0)
       ELSE
          IF(GEO(2,3).LT.10.AND.NATOMS.EQ.3)
      1WRITE(6,'(//10X,'' WARNING: INTERNAL COORDINATES ARE ASSUMED -'',/
      210X,'' FOR THREE-ATOM SYSTEMS '',//)')
-         INT=.TRUE.
+         INTR=.TRUE.
       ENDIF
-      IF(INT)GEO(2,2)=0
+      IF(INTR)GEO(2,2)=0
 C
 C     READ IN VELOCITY VECTOR, IF PRESENT
 C
       IF(INDEX(KEYWRD,'VELO').GT.0)THEN
-         IF(INT)THEN
+         IF(INTR)THEN
             WRITE(6,'(A)')' COORDINATES MUST BE CARTESIAN WHEN VELOCITY'
      1//' VECTOR IS USED.'
             STOP
@@ -337,11 +394,14 @@ C
             DO 200 J=1,3
   200    REACT(J,I)=REACT(J,I+2)
       ENDIF
-      IF(  .NOT. INT ) THEN
+      IF(  .NOT. INTR) THEN
          DO 210 I=1,NATOMS
             DO 210 J=1,3
   210    XYZ(J,I)=GEO(J,I)
-         DEGREE=90.D0/ASIN(1.D0)
+C       LAURENT MODIFICATION: KEEP EVERYTHING IN RADIANS FROM BEGINNING TO END
+C         DEGREE=90.D0/ASIN(1.D0)
+         DEGREE=1.D0
+C       END LAURENT
          CALL XYZINT(XYZ,NATOMS,NA,NB,NC,DEGREE,GEO)
          IF(INDEX(KEYWRD,' XYZ').EQ.0)THEN
 C

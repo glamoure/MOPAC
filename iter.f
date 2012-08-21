@@ -152,6 +152,7 @@ C
 *
 * SCFCRT IS MACHINE-PRECISION DEPENDENT
 *
+C         SCFCRT=1.D-4 Laurent Modification
          SCFCRT=1.D-4
          ITRMAX = 200
          NA2EL=NCLOSE

@@ -83,14 +83,29 @@ C     PATAS
      1IPLOCH(1500),AS(1500),STOT,VOL,NSF,NC1(NUMATM)
       COMMON /FACTOR/ FACTOR
       COMMON /CLASES/ ICLASS(NUMATM)
+C       Laurent Modification
+      COMMON /AXES / XHAT(3),YHAT(3),ZHAT(3),OFF(3),ATOT
+
+      COMMON /PERMUTE /PR,PRT
+            INTEGER PR(NUMATM),PRT(NUMATM)
+      DOUBLE PRECISION ATOT(3,3)
+      COMMON /SCANR / ISCAN,NSCAN,STEPS,STARTS,LIMS,NDIM,IVALS,REDSCN
+      INTEGER ISCAN,NSCAN,IVALS(3*NUMATM),NDIM
+      DOUBLE PRECISION STEPS(3*NUMATM),STARTS(3*NUMATM),LIMS(3*NUMATM)
+      LOGICAL REDSCN
+
+C       Laurent end
 C**********************************************************************
 C* SHIHAO'S MODIFICATION START
 C* Added:
       COMMON /MOLCONST/ CTYPE,ITORS(4),CVALUE
 C* SHIHAO'S MODIFICATION END
 C**********************************************************************
+C       LAURENT MODIFICATION
 
+C       END LAURENT
 C     PATAS
+
       LOGICAL INT, AIGEO, ISOK
       SAVE SPACE, SPACE2, IREACT, INT
       DIMENSION COORD(3,NUMATM),VALUE(40)
@@ -103,6 +118,9 @@ C     PATAS
       AIGEO=.FALSE.
    10 CONTINUE
 C
+C      LAURENT MODIFICATION
+      IF(.NOT.REDSCN)THEN
+C       END LAURENT
       CALL GETTXT
       IF(INDEX(KEYWRD,'ECHO').NE.0)THEN
          REWIND 5
@@ -221,6 +239,12 @@ C
  130  GEO(J,I)=GEO(J,I)*DEGREE
       ENDIF
       ENDIF
+C      LAURENT MODIFICATION
+      ENDIF !!!!REDCSN
+C       END LAURENT
+
+C       LAURENT: DONE READING IN AT THIS POINT
+
       IF(INDEX(KEYWRD,'FORCE').NE.0 .AND. LABELS(NATOMS).EQ.107) THEN
       DO 131 I=1,NA(NATOMS)
       IF(LABELS(I).EQ.99)THEN
@@ -237,6 +261,9 @@ C
 C    WRITE HEADER
       IDATE=' '
       CALL fdate(IDATE)
+C       LAURENT MODIFICATION
+      IF(.NOT.REDSCN)THEN
+C       END LAURENT
       WRITE(6,'(1X,15(''*****''),''****'')')
 C
 C     CHANGE THE FOLLOWING LINE TO SUIT LOCAL ENVIRONMENT, IF DESIRED
@@ -265,14 +292,17 @@ C* SHIHAO MODIFICATION END ******************************************
      115X,''CALC''''D. '',A)') VERSON, IDATE
 C
 C CONVERT ANGLES TO RADIANS
-      DO 140 J=2,3
-C$DOIT VBEST
-         DO 140 I=1,NATOMS
-            GEO(J,I) = GEO(J,I) * CONVTR
-  140 CONTINUE
+!      DO 140 J=2,3
+!C$DOIT VBEST
+!         DO 140 I=1,NATOMS
+!            GEO(J,I) = GEO(J,I) * CONVTR
+!  140 CONTINUE
 C
 C CHECK DATA
 C
+C       LAURENT MODIFICATION
+      ENDIF
+C       END LAURENT
       NA(1)=0
       NB(1)=0
       NC(1)=0
@@ -302,8 +332,16 @@ C
   150 CONTINUE
 C
 C WRITE KEYWORDS BACK TO USER AS FEEDBACK
+C       LAURENT MODIFICATION
+      IF(.NOT.REDSCN)THEN
+C       END LAURENT
       CALL WRTKEY(KEYWRD)
       WRITE(6,'(1X,14(''*****''),''*'',I3.3,''BY'',I3.3)')MAXHEV,MAXLIT
+C       LAURENT MODIFICATION
+      ELSE
+         CALL RDKEY(KEYWRD)
+      ENDIF
+C       END LAURENT
 C
 C FILL IN GEO MATRIX IF NEEDED
       IF(INDEX(KEYWRD,'OLDGEO').EQ.0.AND.INDEX(KEYWRD,'SYM') .NE. 0
@@ -352,6 +390,7 @@ C    FLAG FOR OPTIMIZE
                XPARAM(NVAR)   = GEO(J,I)
   180    CONTINUE
       ENDIF
+
 C READ IN PATH VALUES
       IF(IFLAG.EQ.0) GO TO 221
       IF(INDEX(KEYWRD,'NLLSQ').NE.0)THEN
@@ -566,19 +605,37 @@ C
   230       CONTINUE
          ELSE
             WRITE(6,'(//10X,''CARTESIAN COORDINATES '',/)')
-            WRITE(6,'(4X,''NO.'',7X,''ATOM'',9X,''X'',
-     1  9X,''Y'',9X,''Z'',/)')
+            WRITE(6,'(4X,''NO.'',7X,''ATOM'',15X,''X'',
+     1  15X,''Y'',15X,''Z'',/)')
             L=0
             DO 240 I=1,NATOMS
-               IF(LABELS(I) .EQ. 99.OR.LABELS(I).EQ.107) GOTO 240
+               IF(LABELS(PRT(I)) .EQ. 99.OR.LABELS(PRT(I)).EQ.107)THEN
+                GOTO 240
+               ENDIF
                L=L+1
-               WRITE(6,'(I6,8X,A2,4X,3F10.4)')
-     1  L,ELEMNT(LABELS(I)),(COORD(J,L),J=1,3)
+               WRITE(6,'(I6,8X,A2,4X,3F16.10)')
+C       Laurent Modification: Added coordinate backtransform
+C        1  L,ELEMNT(LABELS(I)),(COORD(J,L),J=1,3)
+     1  L,ELEMNT(LABELS(PRT(I))),ATOT(1,1)*COORD(1,PRT(I))+
+     2ATOT(1,2)*COORD(2,PRT(I))+ATOT(1,3)*COORD(3,PRT(I))+OFF(1)
+     3,ATOT(2,1)*COORD(1,PRT(I))+ ATOT(2,2)*COORD(2,PRT(I))+
+     4 ATOT(2,3)*COORD(3,PRT(I))+OFF(2),ATOT(3,1)*COORD(1,PRT(I))+
+     5ATOT(3,2)*COORD(2,PRT(I))+ATOT(3,3)*COORD(3,PRT(I))+OFF(3)
+C       Laurent End
+
+
+
   240       CONTINUE
          ENDIF
       ENDIF
+C       LAURENT MODIFICATION
+      IF(.NOT.REDSCN)THEN
+C       END LAURENT
       CALL SYMTRZ(COORD,C,NORBS,NORBS,.FALSE.,.FALSE.)
       WRITE(6,'(//''     MOLECULAR POINT GROUP   :   '',A4)') NAME
+C       LAURENT MODIFCATION
+      ENDIF
+C       END LAURENT
       IF(   INDEX(KEYWRD,' XYZ') .NE. 0 )THEN
          IF( NVAR .NE. 0 .AND.
      1 INT.AND.(NDEP .NE. 0 .OR.  NVAR.LT.3*NUMAT-6)) THEN
@@ -604,6 +661,11 @@ C
          SUMX=SUMX/NUMAT
          SUMY=SUMY/NUMAT
          SUMZ=SUMZ/NUMAT
+C       Laurent Modification: this recentering needs to be taken into account
+        OFF(1)=OFF(1)+ATOT(1,1)*SUMX+ATOT(1,2)*SUMY+ATOT(1,3)*SUMZ
+        OFF(2)=OFF(2)+ATOT(2,1)*SUMX+ATOT(2,2)*SUMY+ATOT(2,3)*SUMZ
+        OFF(3)=OFF(3)+ATOT(3,1)*SUMX+ATOT(3,2)*SUMY+ATOT(3,3)*SUMZ
+C       Laurent end
          DO 260 J=1,NUMAT
             GEO(1,J)=COORD(1,J)-SUMX
             GEO(2,J)=COORD(2,J)-SUMY
@@ -632,11 +694,13 @@ C
          NATOMS=NUMAT
       ELSE
          IF(NVAR.EQ.0) RETURN
-         IF( .NOT. INT.AND.(NDEP .NE. 0 .OR.  NVAR.LT.3*NUMAT-6)) THEN
+         IF(.NOT. INT.AND.(NDEP .NE. 0 .OR.NVAR.LT.3*NUMAT-6)
+     1    .AND.INDEX(KEYWRD,'ALTCON').EQ.0) THEN
             IF(NDEP.NE.0)
      1WRITE(6,'(//10X,'' CARTESIAN COORDINATES READ IN, AND SYMMETRY''
      2,/10X,'' SPECIFIED, BUT CALCULATION TO BE RUN IN INTERNAL ''
      3,''COORDINATES'')')
+
             IF(NVAR.LT.3*NUMAT-6)
      1WRITE(6,'(//10X,'' CARTESIAN COORDINATES READ IN, AND'',
      2'' CALCULATION '',/10X,''TO BE RUN IN INTERNAL COORDINATES, '',

@@ -22,7 +22,10 @@ unix:
 		f77 -w -O *.f -o $(EXE) 
 
 linux2:
-		gfortran  -fno-automatic -w -O  *.f -o $(EXE)
+		gfortran  -fno-automatic -w -O  *.f -o $(EXE) -fno-range-check -fcray-pointer
+		
+linux2debug:
+		gfortran  -fno-automatic -w -g *.f -o $(EXE) -fno-range-check -fcray-pointer
 
 
 clean:

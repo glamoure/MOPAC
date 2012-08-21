@@ -45,6 +45,31 @@ C
       COMMON /NUMCAL/ NUMCAL
       COMMON /TIME  / TIME0
       COMMON /PATH  / LATOM,LPARAM,REACT(200)
+C       Laurent Modification
+C       Added: unit vectors to be transformed as the axes are rotated
+C       as well as a translation vector in order to return to the input coords
+      COMMON /GENRAL/ COORD(3,NUMATM), COLD(3,NUMATM*3), GOLD(MAXPAR)
+
+      COMMON /AXES / XHAT(3),YHAT(3),ZHAT(3),OFF(3),ATOT(3,3)
+      COMMON /ARRS / DESC
+      COMMON /SCANR / ISCAN,NSCAN,STEPS,STARTS,LIMS,NDIM,IVALS,REDSCN
+      INTEGER ISCAN,NSCAN,IVALS(3*NUMATM),NDIM
+      DOUBLE PRECISION STEPS(3*NUMATM),STARTS(3*NUMATM),LIMS(3*NUMATM)
+      COMMON /XYZGRA/ DXYZ(9*NUMATM)
+      COMMON /ALTCON / TRANSL, BANGL, DIHDR, ATOMS, ICONXN, APPLIED,
+     1                  VALS, NVALS,NTRANS,NANGL,NDIHD,NATOM
+      INTEGER TRANSL(5*NUMATM),NTRANS,BANGL(6*NUMATM),NANGL,
+     1         DIHDR(7*NUMATM),NDIHD,ATOMS(NUMATM*NUMATM),
+     2         NATOM,ICONXN(6,NUMATM),NVALS
+      LOGICAL APPLIED
+      DOUBLE PRECISION VALS(3*NUMATM)
+      LOGICAL REDSCN
+      INTEGER DESC
+      DATA DESC,ISCAN,NSCAN,NDIM,REDSCN /2,1,1,0,.FALSE./
+
+      DATA NTRANS,NANGL,NDIHD,NATOM,NVALS,APPLIED /0,0,0,0,0,.FALSE./
+C       end of Laurent Modification
+
 C COSMO change
       LOGICAL ISEPS, USEPS , UPDA
       COMMON /ISEPS/  ISEPS, USEPS, UPDA
@@ -52,19 +77,48 @@ C end of COSMO change
 C     PATAS
       COMMON /MSTQ/ QS(1500),MFLAG,ITERQ
 C     PATAS
-      CHARACTER*241 KEYWRD, GETNAM*80
+      CHARACTER*241 KEYWRD, GETNAM*80,FILENAME*80
       LOGICAL ISOK, LIMSCF
 C     PATAS
       MFLAG=0
       ITERQ=0
 C     PATAS
+
+C       Laurent: Axis Initilization
+
+      XHAT(1)=1
+      YHAT(1)=0
+      ZHAT(1)=0
+      OFF(1)=0
+      XHAT(2)=0
+      YHAT(2)=1
+      ZHAT(2)=0
+      OFF(2)=0
+      XHAT(3)=0
+      YHAT(3)=0
+      ZHAT(3)=1
+      OFF(3)=0
+
+      ATOT(:,1)=XHAT
+      ATOT(:,2)=YHAT
+      ATOT(:,3)=ZHAT
+C       End Laurent
+
       CALL GETDAT
 C
 C   CLOSE UNIT 6 IN CASE IT WAS ALREADY PRE-ASSIGNED
 C
           CLOSE (6)
-          OPEN(UNIT=6,FILE=GETNAM('FOR006'),STATUS='NEW')
-          REWIND 6
+C       Laurent: Changed status from old to replace to avoid unecessary errors
+          IF(REDSCN)THEN
+             OPEN(UNIT=6,FILE=GETNAM('FOR006'),ACCESS='APPEND')
+          ELSE
+            OPEN(UNIT=6,FILE=GETNAM('FOR006'),STATUS='REPLACE')
+            REWIND 6
+          ENDIF
+C       Laurent End
+
+
 C#      CALL TIMER('FIRST LINE')
       NUMCAL=0
       ISOK=.TRUE.
@@ -75,7 +129,12 @@ C
 C READ AND CHECK INPUT FILE, EXIT IF NECESSARY.
 C     WRITE INPUT FILE TO UNIT 6 AS FEEDBACK TO USER
 C
-   20 CALL READMO
+C       LAURENT MODIFICATION
+!   20 CALL READMO
+
+   20 CALL INITRD
+   21 CALL POSTRD
+C       END LAURENT
       EMIN=0.D0
 C#      CALL TIMER('AFTER READ')
       IF(NATOMS.EQ.0) GOTO 50
@@ -128,6 +187,14 @@ C
    30    EAT   =EAT   +EISOL(NI)
          ATHEAT=ATHEAT-EAT*23.061D0
       ENDIF
+C       LAURENT MODIFICATION
+      CALL COMPFG(XPARAM,.TRUE.,EINIT,.TRUE.,GRAD,.TRUE.)
+      WRITE(6,'(//''   INITIAL HEAT OF FORMATION =   '',F17.5,/'''')')
+     1 EINIT
+      CALL GMETRY(GEO,COORD)
+      GNORM=SQRT(DOT(GRAD,GRAD,NVAR))
+C       END LAURENT
+
       IF (INDEX(KEYWRD,'RESTART').EQ.0)THEN
          IF (INDEX(KEYWRD,'1SCF').NE.0) THEN
             IF(LATOM.NE.0)THEN
@@ -222,7 +289,9 @@ C#      CALL TIMER('BEFORE FLEPO')
 C COSMO change 1/9/92 SJC
       UPDA = .FALSE.
 C end of COSMO change
+
       CALL FLEPO(XPARAM, NVAR, ESCF)
+
    40 LAST=1
       IF(IFLEPO.GE.0)CALL WRITMO(TIME0, ESCF)
       IF(INDEX(KEYWRD,'POLAR') .NE. 0) THEN
@@ -255,7 +324,9 @@ C
   200 CALL LDIMA
       CALL RFIELD
       ITERQ=ITERQ+1
+
       CALL FLEPO(XPARAM, NVAR, ESCF)
+
       CALL WRITMO(TIME0, ESCF)
       IF (MFLAG.LT.3) GO TO 200
 C
@@ -297,5 +368,13 @@ C     PATAS
       LIMSCF=.FALSE.
       WRITE(6,'(///,'' TOTAL CPU TIME: '',F16.2,'' SECONDS'')') TIM
       WRITE(6,'(/,'' == MOPAC DONE =='')')
-      IF(ISOK) GOTO 10
+C       LAURENT MODIFICATION:SCANNING
+      IF(ISCAN.LT.NSCAN)THEN
+      CALL GMETRY(GEO,COORD)
+      CALL STEPSCAN()
+      GOTO 21
+      ENDIF
+
+C       END LAURENT
+!      IF(ISOK) GOTO 10
       END

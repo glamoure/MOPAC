@@ -1,5 +1,6 @@
       SUBROUTINE GETDAT
-      CHARACTER*80 LINE, GETNAM
+      INCLUDE 'SIZES'
+      CHARACTER*80 LINE, GETNAM, FILENAME
 ************************************************************************
 *
 *   GETDAT READS ALL THE DATA IN ON CHANNEL 2, AND WRITES IT TO SCRATCH
@@ -7,6 +8,14 @@
 *   THE JOB STARTS.
 *
 ************************************************************************
+C       LAURENT MODIFICATION
+      COMMON /SCANR / ISCAN,NSCAN,STEPS,STARTS,LIMS,NDIM,IVALS,REDSCN
+      INTEGER ISCAN,NSCAN,IVALS(3*NUMATM),NDIM
+      DOUBLE PRECISION STEPS(3*NUMATM),STARTS(3*NUMATM),LIMS(3*NUMATM)
+      LOGICAL REDSCN
+C       END LAURENT
+      INTEGER STRLEN
+      LOGICAL SCANING
       DATA I/0/
       SAVE I
 C#      WRITE(6,*)GETNAM('FOR005')

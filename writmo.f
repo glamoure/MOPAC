@@ -49,6 +49,17 @@ C     PATAS
       COMMON /MSTQ/ QS(1500),MFLAG,ITERQ
       COMMON /FINAL/ GVW,GVWS,ELC1,EC1
 C     PATAS
+C       Laurent Modification
+      COMMON /AXES / XHAT(3),YHAT(3),ZHAT(3),OFF(3),ATOT
+      COMMON /ENERGY / EQLBR
+      COMMON /PERMUTE / PR,PRT
+      INTEGER PR(NUMATM),PRT(NUMATM)
+      DOUBLE PRECISION ATOT(3,3)
+      COMMON /SCANR / ISCAN,NSCAN,STEPS,STARTS,LIMS,NDIM,IVALS,REDSCN
+      INTEGER ISCAN,NSCAN,IVALS(3*NUMATM),NDIM
+      DOUBLE PRECISION STEPS(3*NUMATM),STARTS(3*NUMATM),LIMS(3*NUMATM)
+      LOGICAL REDSCN
+C       Laurent end
 ************************************************************************
 *
 *   WRITE PRINTS OUT MOST OF THE RESULTS.
@@ -175,9 +186,14 @@ C
          CALL GEOUT(1)
          STOP
       ENDIF
+C       LAURENT MODIFICATION
+      IF(NSCAN.GE.1)CALL WRTENERGY(FUNCT)
+C       END LAURENT
       WRITE(6,'(////10X,''FINAL HEAT OF FORMATION ='',F17.5,'' KCAL''
      1)')FUNCT
       IF(LATOM.EQ.0) WRITE(6,'(/)')
+      WRITE(6,'(    10X,''EQUILIBRIUM ENERGY      ='',F17.5,'' KCAL''
+     1)')EQLBR
       WRITE(6,'(    10X,''TOTAL ENERGY            ='',F17.5,'' EV''
      1)')ELECT+ENUCLR
       WRITE(6,'(    10X,''ELECTRONIC ENERGY       ='',F17.5,'' EV''
@@ -324,7 +340,12 @@ C    PATAS
  300  IF( NDEP .NE. 0 )CALL SYMTRY
       DO 20 I=1,NVAR
    20 XPARAM(I)=GEO(LOC(2,I),LOC(1,I))
+
       CALL GMETRY(GEO,COORD)
+C       LAURENT MODIFICATION
+!        CALL WRITESCANSTATE(COORD)
+C       END LAURENT
+
       IF(PRTGRA)THEN
          WRITE(6,'(///7X,''FINAL  POINT  AND  DERIVATIVES'',/)')
          WRITE(6,'(''   PARAMETER     ATOM    TYPE  ''
@@ -393,25 +414,30 @@ C#     +STATUS='OLD')
 C#      WRITE(6,'(A)') 'Error opening SYBYL MOPAC output'
 C#  32  CONTINUE
       ENDIF
-      IF(NORBS.GT.0)THEN
-      CALL SYMTRZ(COORD,C,NORBS,NORBS,.FALSE.,.TRUE.)
-      WRITE(6,'(//''      MOLECULAR POINT GROUP   :   '',A4)')NAME
-         IF (INDEX(KEYWRD,'VECT') .NE. 0) THEN
-            WRITE(6,'(//10X,A5,'' EIGENVECTORS  '')')CALCN(IUHF)
-            CALL MATOU1 (C,EIGS,NORBS,NORBS,MAXORB,2)
-            IF(UHF) THEN
-               WRITE(6,'(//10X,'' BETA EIGENVECTORS  '')')
-               CALL MATOU1 (CBETA,EIGB,NORBS,NORBS,MAXORB,2)
-            ENDIF
-         ELSE
-            WRITE(6,'(//10X,A5,''   EIGENVALUES'',/)')CALCN(IUHF)
-            WRITE(6,'(8F10.5)')(EIGS(I),I=1,NORBS)
-            IF(UHF) THEN
-               WRITE(6,'(//10X,'' BETA EIGENVALUES '')')
-               WRITE(6,'(8F10.5)')(EIGB(I),I=1,NORBS)
-            ENDIF
-         ENDIF
-      ENDIF
+C       LAURENT MODIFICATION
+C       REMOVED:IF(NORBS.GT.0)THEN
+!      IF(NORBS.GT.0.AND..NOT.REDSCN)THEN
+C       END LAURENT
+C       LAURENT MODIFICATION: FOR SCANNING PURPOSES
+!      CALL SYMTRZ(COORD,C,NORBS,NORBS,.FALSE.,.TRUE.)
+!      WRITE(6,'(//''      MOLECULAR POINT GROUP   :   '',A4)')NAME
+!         IF (INDEX(KEYWRD,'VECT') .NE. 0) THEN
+!            WRITE(6,'(//10X,A5,'' EIGENVECTORS  '')')CALCN(IUHF)
+!            CALL MATOU1 (C,EIGS,NORBS,NORBS,MAXORB,2)
+!            IF(UHF) THEN
+!               WRITE(6,'(//10X,'' BETA EIGENVECTORS  '')')
+!               CALL MATOU1 (CBETA,EIGB,NORBS,NORBS,MAXORB,2)
+!            ENDIF
+!         ELSE
+!            WRITE(6,'(//10X,A5,''   EIGENVALUES'',/)')CALCN(IUHF)
+!            WRITE(6,'(8F10.5)')(EIGS(I),I=1,NORBS)
+!            IF(UHF) THEN
+!               WRITE(6,'(//10X,'' BETA EIGENVALUES '')')
+!               WRITE(6,'(8F10.5)')(EIGB(I),I=1,NORBS)
+!            ENDIF
+!         ENDIF
+!      ENDIF
+C       END LAURENT
       WRITE(6,'(//13X,'' NET ATOMIC CHARGES AND DIPOLE '',
      1''CONTRIBUTIONS'',/)')
       WRITE(6,'(8X,'' ATOM NO.   TYPE          CHARGE        ATOM''
@@ -426,9 +452,17 @@ C#  32  CONTINUE
       IF (INDEX(KEYWRD,' NOXYZ') .EQ. 0) THEN
          WRITE(6,'(//10X,''CARTESIAN COORDINATES '',/)')
          WRITE(6,'(4X,''NO.'',7X,''ATOM'',15X,''X'',
-     1  9X,''Y'',9X,''Z'',/)')
-         WRITE(6,'(I6,8X,A2,14X,3F10.4)')
-     1  (I,ELEMNT(NAT(I)),(COORD(J,I),J=1,3),I=1,NUMAT)
+     1  15X,''Y'',15X,''Z'',/)')
+C       Laurent Modification: Added coordinate backtransform
+        WRITE(6,'(I6,8X,A2,4X,F16.10,F16.10,F16.10)')
+C     1  (I,ELEMNT(NAT(I)),(COORD(J,I),J=1,3),I=1,NUMAT)
+     1  (I,ELEMNT(NAT(PRT(I))),ATOT(1,1)*COORD(1,PRT(I))+
+     2 ATOT(1,2)*COORD(2,PRT(I))+ ATOT(1,3)*COORD(3,PRT(I))+
+     3 OFF(1),ATOT(2,1)*COORD(1,PRT(I))+ATOT(2,2)*COORD(2,PRT(I))+
+     4 ATOT(2,3)*COORD(3,PRT(I))+OFF(2), ATOT(3,1)*COORD(1,PRT(I))+
+     5 ATOT(3,2)*COORD(2,PRT(I))+ATOT(3,3)*COORD(3,PRT(I))+OFF(3),
+     6 I=1,NUMAT)
+C       Laurent End
       ENDIF
       IF(NORBS.GT.0) THEN
          IF (INDEX(KEYWRD,' K=') .NE. 0)THEN
@@ -623,7 +657,7 @@ C  CALL TO MULLIK.
          IEND=JEND+1
          ENDIF
   162    CLOSE (12)
-         OPEN(UNIT=12,FILE=NAMFIL,STATUS='NEW',ERR=163)
+         OPEN(UNIT=12,FILE=NAMFIL,STATUS='REPLACE',ERR=163)
          GOTO 164
   163    NAMFIL(IEND:IEND)=CHAR(INAM)
          NAMFIL(JEND:JEND)=CHAR(JNAM)
@@ -711,4 +745,3 @@ C  CALL TO MULLIK.
       NSCF=0
       RETURN
       END
-

@@ -28,6 +28,7 @@
       CHARACTER KEYWRD*241, KOMENT*81, TITLE*81, BLANK*80, LTXT*1
       LOGICAL CART
       MODE=MODE1
+
       IF(MODE.EQ.1)THEN
          FLAG1=' *'
          FLAG0='  '
@@ -73,13 +74,13 @@ C$DOUT VBEST
       MAXTXT=ICHAR(LTXT)
       BLANK=' '
       IF(MODE.EQ.1)THEN
-         WRITE (6,40)BLANK(:MAX(2,MAXTXT-4)),
-     1               BLANK(:MAX(4,MAXTXT-2)),
-     2               BLANK(:MAX(18,MAXTXT+12))
-   40    FORMAT (/4X,'ATOM',3X,'CHEMICAL',A ,'BOND LENGTH',4X,'BOND ANGL
-     1E',4X ,' TWIST ANGLE',/3X,'NUMBER',2X,'SYMBOL', A,'(ANGSTROMS)',5
-     2X,'(DEGREES)',5X,' (DEGREES)',/4X,'(I)',A,'NA:I',10X,'NB:NA:I',5
-     3X,' NC:NB:NA:I',5X,'NA',3X,'NB',3X,'NC',/)
+         WRITE (6,40)BLANK(:MAX(7,MAXTXT-4)),
+     1               BLANK(:MAX(9,MAXTXT-2)),
+     2               BLANK(:MAX(23,MAXTXT+12))
+   40    FORMAT (/4X,'ATOM',3X,'CHEMICAL',A ,'BOND LENGTH',8X,
+     1'BOND ANGLE',8X ,' TWIST ANGLE',/3X,'NUMBER',2X,'SYMBOL', A,
+     2'(ANGSTROMS)',8X,'(DEGREES)',9X,' (DEGREES)',/4X,'(I)',A,
+     3'NA:I',12X,'NB:NA:I',10X,' NC:NB:NA:I',6X,'NA',3X,'NB',3X,'NC',/)
       ELSE
          IF(MODE.GT.0)CALL WRTTXT(IPRT)
       ENDIF
@@ -127,6 +128,7 @@ C
          ELSE
             J=MAX(9,MAXTXT+3)
          ENDIF
+
          IF(LABELS(I).NE.0)THEN
             IF(MODE.NE.1)THEN
                IF(LABELS(I).NE.99.AND.LABELS(I).NE.107)THEN
@@ -140,14 +142,14 @@ C
      2NA(I),NB(I),NC(I)
                ENDIF
             ELSEIF(I.GT.3)THEN
-               WRITE (6,'(3X,I4 ,5X,A,F9.5,1X,A2,F14.5,1X,A2,F11.5,1X,
+               WRITE (6,'(3X,I4 ,5X,A,F16.10,1X,A2,F16.10,1X,A2,F16.10,1X,
      1A2,I4,2I5)') I,BLANK(:J),COORD(1,I),Q(1),W,Q(2),X,Q(3),
      2NA(I),NB(I),NC(I)
             ELSEIF(I.EQ.3)THEN
-               WRITE (6,'(''      3'',5X,A,F9.5,1X,A2,F14.5,1X,A2,13X,
-     12I5)') BLANK(:J),COORD(1,3),Q(1),W,Q(2),NA(3),NB(3)
+               WRITE (6,'(''      3'',5X,A,F16.10,1X,A2,F16.10,1X,A2,
+     1          17X,2I5)') BLANK(:J),COORD(1,3),Q(1),W,Q(2),NA(3),NB(3)
             ELSEIF(I.EQ.2)THEN
-               WRITE (6,'(''      2'',5X,A,F9.5,1X,A2,30X,I5)')
+               WRITE (6,'(''      2'',5X,A,F16.10,1X,A2,36X,I5)')
      1 BLANK(:J),COORD(1,2),Q(1),NA(2)
             ELSE
                WRITE (6,'(''      1'',5X,A)') BLANK(:J)

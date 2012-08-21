@@ -1,6 +1,8 @@
       SUBROUTINE XYZINT(XYZ,NUMAT,NA,NB,NC,DEGREE,GEO)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      DIMENSION XYZ(3,*), NA(*), NB(*), NC(*), GEO(3,*)
+      INCLUDE 'SIZES'
+      DIMENSION XYZ(3,NUMATM), NA(NUMATM), NB(NUMATM), NC(NUMATM),
+     1 GEO(3,NUMATM)
 ***********************************************************************
 *
 * XYZINT WORKS OUT THE INTERNAL COORDINATES OF A MOLECULE.
@@ -25,8 +27,66 @@
 ***********************************************************************
       COMMON /GEOOK/ IGEOOK
       COMMON /NUMCAL/ NUMCAL
+C             Laurent Modification: added
+      COMMON /AXES / XHAT(3),YHAT(3),ZHAT(3),OFF(3),ATOT
+      COMMON /ALTCON / TRANSL, BANGL, DIHDR, ATOMS, ICONXN, APPLIED,
+     1                  VALS, NVALS,NTRANS,NANGL,NDIHD,NATOM
+      INTEGER TRANSL(5*NUMATM),NTRANS,BANGL(6*NUMATM),NANGL,
+     1         DIHDR(7*NUMATM),NDIHD,ATOMS(NUMATM*NUMATM),
+     2         NATOM,ICONXN(6,NUMATM),NVALS
+      LOGICAL APPLIED
+      DOUBLE PRECISION VALS(3*NUMATM)
+      COMMON /LIN / PI,PJ,PK
+      COMMON /PERMUTE /PR,PRT
+      INTEGER PR(NUMATM),PRT(NUMATM),PI,PJ,PK
+      LOGICAL PRMTD,FIRST
+      DOUBLE PRECISION ATOT(3,3)
+      DOUBlE PRECISION DX, DY, DZ
+     1  XYZINIT(3,NUMATM)
+
+      COMMON /KEYWRD/ KEYWRD
+      CHARACTER KEYWRD*241
+      SAVE PRMTD,FIRST
+      DATA PRMTD,FIRST /.FALSE.,.TRUE./
+C       Laurent End
       DATA ICALCN/0/
       IGEOOK=99
+
+C       Laurent Modification: Recenter on the first atom
+
+
+      IF(INDEX(KEYWRD,'ALTCON').NE.0.AND..NOT.APPLIED
+     1 .AND.(NATOM.NE.0.OR.PI.NE.0))THEN
+        IF(.NOT.PRMTD)THEN
+            CALL PERATMS(XYZ)
+            PRMTD=.TRUE.
+        ENDIF
+        CALL AALTCON(XYZ)
+        APPLIED=.TRUE.
+      ENDIF
+
+      IF(FIRST)THEN
+      DX=XYZ(1,1)
+      DY=XYZ(2,1)
+      DZ=XYZ(3,1)
+      OFF(1)=OFF(1)+ATOT(1,1)*DX+ATOT(1,2)*DY+ATOT(1,3)*DZ
+      OFF(2)=OFF(2)+ATOT(2,1)*DX+ATOT(2,2)*DY+ATOT(2,3)*DZ
+      OFF(3)=OFF(3)+ATOT(3,1)*DX+ATOT(3,2)*DY+ATOT(3,3)*DZ
+!      OFF(1)=OFF(1)+ATOT(1,1)*DX+ATOT(2,1)*DY+ATOT(3,1)*DZ
+!      OFF(2)=OFF(2)+ATOT(1,2)*DX+ATOT(2,2)*DY+ATOT(3,2)*DZ
+!      OFF(3)=OFF(3)+ATOT(1,3)*DX+ATOT(2,3)*DY+ATOT(3,3)*DZ
+
+
+
+
+      DO 40 I=1,NUMAT
+        XYZ(1,I)=XYZ(1,I)-DX
+        XYZ(2,I)=XYZ(2,I)-DY
+        XYZ(3,I)=XYZ(3,I)-DZ
+   40 CONTINUE
+      FIRST=.FALSE.
+      ENDIF
+C       Laurent End
       IF(.NOT.(ICALCN.NE.NUMCAL).AND.NA(2).EQ.-1 .OR. NA(2).EQ.-2)THEN
          NA(2)=1
          DO 10 I=2,NUMAT
@@ -38,11 +98,13 @@
      2          (XYZ(3,I)-XYZ(3,J))**2)
    10    CONTINUE
       ELSE
+         K=1
          IF(NA(2).EQ.-1)ICALCN=NUMCAL
-         DO 30 I=1,NUMAT
-            NA(I)=2
-            NB(I)=3
-            NC(I)=4
+         DO 30 I=2,NUMAT
+         IF(ICONXN(1,I).EQ.0)THEN
+            NA(I)=1
+            NB(I)=2
+            NC(I)=3
             IM1=I-1
             IF(IM1.EQ.0)GOTO 30
             SUM=1.D30
@@ -58,9 +120,45 @@
 C
 C   ATOM I IS NEAREST TO ATOM K
 C
+
+        ELSE
+        K=ICONXN(1,I)
+        ENDIF
             NA(I)=K
-            IF(I.GT.2)NB(I)=NA(K)
-            IF(I.GT.3)NC(I)=NB(K)
+            IF(I.GT.2)THEN
+                IF(ICONXN(2,I).EQ.0)THEN
+                        IF(NA(I).EQ.I-2)THEN
+                            NB(I)=I-1
+                        ELSE
+                            NB(I)=I-2
+                        ENDIF
+                ELSE
+                        NB(I)=ICONXN(2,I)
+                ENDIF
+            ENDIF
+            IF(I.GT.3)THEN
+                IF(ICONXN(3,I).EQ.0)THEN
+                            IF(NA(I).EQ.I-3.OR.NB(I).EQ.I-3)THEN
+                                IF(NA(I).EQ.I-3)THEN
+                                    IF(NB(I).EQ.I-2)THEN
+                                          NC(I)=I-1
+                                    ELSE
+                                        NC(I)=I-2
+                                    ENDIF
+                                ELSE
+                                    IF(NA(I).EQ.I-2)THEN
+                                         NC(I)=I-1
+                                    ELSE
+                                         NC(I)=I-2
+                                    ENDIF
+                                ENDIF
+                            ELSE
+                                NC(I)=I-3
+                            ENDIF
+                ELSE
+                    NC(I)=ICONXN(3,I)
+                ENDIF
+            ENDIF
 C
 C   FIND ANY ATOM TO RELATE TO NA(I)
 C
@@ -72,12 +170,15 @@ C
       NB(2)=0
       NC(2)=0
       NC(3)=0
+
       CALL XYZGEO(XYZ,NUMAT,NA,NB,NC,DEGREE,GEO)
       RETURN
       END
       SUBROUTINE XYZGEO(XYZ,NUMAT,NA,NB,NC,DEGREE,GEO)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      DIMENSION XYZ(3,*), NA(*), NB(*), NC(*), GEO(3,*)
+      INCLUDE 'SIZES'
+      DIMENSION XYZ(3,NUMATM), NA(NUMATM), NB(NUMATM), NC(NUMATM),
+     1  GEO(3,NUMATM)
 ***********************************************************************
 *
 *   XYZGEO CONVERTS COORDINATES FROM CARTESIAN TO INTERNAL.
@@ -95,6 +196,27 @@ C
 *                     AND RADIANS
 *
 ***********************************************************************
+C       Laurent
+      COMMON /AXES / XHAT(3),YHAT(3),ZHAT(3),OFF(3),ATOT
+      COMMON /ALTCON / TRANSL, BANGL, DIHDR, ATOMS, ICONXN, APPLIED,
+     1                  VALS, NVALS,NTRANS,NANGL,NDIHD,NATOM
+      INTEGER TRANSL(5*NUMATM),NTRANS,BANGL(6*NUMATM),NANGL,
+     1         DIHDR(7*NUMATM),NDIHD,ATOMS(NUMATM*NUMATM),
+     2         NATOM,ICONXN(6,NUMATM),NVALS
+      LOGICAL APPLIED
+      DOUBLE PRECISION VALS(3*NUMATM)
+      COMMON /PERMUTE /PR,PRT
+      INTEGER PR(NUMATM),PRT(NUMATM)
+      COMMON /GENRAL/ COORD(3,NUMATM), COLD(3,NUMATM*3), GOLD(MAXPAR),
+     1 XPARAM(MAXPAR)
+      DOUBLE PRECISION XHP(3),YHP(3),ZHP(3),XHT(3),YHT(3),ZHT(3),LNP
+     1 ,ATMP(3,3),XY,XZ,YZ,ZZ,ATOT(3,3)
+      COMMON /KEYWRD/ KEYWRD
+      CHARACTER KEYWRD*241
+C       /Laurent
+
+C       Laurent: This loop is all about defining NC(I), in order to give good bond angles
+C                It must be bypassed in order to apply constraints on the dihedral
       DO 30 I=2,NUMAT
          J=NA(I)
          K=NB(I)
@@ -107,9 +229,11 @@ C
 C
 C   MAKE SURE DIHEDRAL IS MEANINGLFUL
 C
+
          CALL BANGLE(XYZ,J,K,L,ANGL)
          TOL=0.2617994D0
-         IF(ANGL.GT.3.1415926D0-TOL.OR.ANGL.LT.TOL)THEN
+         IF((ANGL.GT.3.1415926D0-TOL.OR.ANGL.LT.TOL).AND.ICONXN(3,I)
+     1    .EQ.0)THEN
 C
 C  ANGLE IS UNSATISFACTORY, LET'S SEARCH FOR ANOTHER ATOM FOR
 C  DEFINING THE DIHEDRAL.
@@ -135,11 +259,74 @@ C
                GOTO 10
             ENDIF
          ENDIF
-         CALL DIHED(XYZ,II,J,K,L,GEO(3,I))
+         CALL DIHED(XYZ,I,NA(I),NB(I),NC(I),GEO(3,I))
          GEO(3,I)=GEO(3,I)*DEGREE
-   30 GEO(1,I)= SQRT((XYZ(1,I)-XYZ(1,J))**2+
-     1                   (XYZ(2,I)-XYZ(2,J))**2+
-     2                   (XYZ(3,I)-XYZ(3,J))**2)
+   30 GEO(1,I)= SQRT((XYZ(1,I)-XYZ(1,NA(I)))**2+
+     1                   (XYZ(2,I)-XYZ(2,NA(I)))**2+
+     2                   (XYZ(3,I)-XYZ(3,NA(I)))**2)
+
+C       Geometric Constraints should be imposed here
+
+
+
+C       Laurent: calculate the input XYZ components for our basis
+C       This may need to be reworked for cases where the first two molecules are colinear
+C       Translation (should be done at the end in input coords)
+
+
+
+C       New Axes
+
+      XHP=XYZ(:,2)
+      LNP = SQRT((XHP(1))**2+(XHP(2))**2+(XHP(3))**2)
+      XHP(1)=XHP(1)/LNP
+      XHP(2)=XHP(2)/LNP
+      XHP(3)=XHP(3)/LNP
+
+C       remove component along the new xhat from the coords of the third to get the second axis
+      YHP=XYZ(:,3)
+      LNP = dot_product(YHP,XHP)
+      YHP(1)=YHP(1)-LNP*XHP(1)
+      YHP(2)=YHP(2)-LNP*XHP(2)
+      YHP(3)=YHP(3)-LNP*XHP(3)
+C       make it unitary
+      LNP = SQRT((YHP(1))**2+(YHP(2))**2+(YHP(3))**2)
+      YHP(1)=YHP(1)/LNP
+      YHP(2)=YHP(2)/LNP
+      YHP(3)=YHP(3)/LNP
+      XY=dot_product(XHP,YHP)
+
+C       find the third axis from the fact that k=ixj
+      ZHP(1)=XHP(2)*YHP(3)-XHP(3)*YHP(2)
+      ZHP(2)=XHP(3)*YHP(1)-XHP(1)*YHP(3)
+      ZHP(3)=XHP(1)*YHP(2)-XHP(2)*YHP(1)
+      XZ=dot_product(XHP,ZHP)
+      YZ=dot_product(YHP,ZHP)
+      ZZ=dot_product(ZHP,ZHP)
+C       Update our axes
+
+
+      ATMP(:,1)=XHP
+      ATMP(:,2)=YHP
+      ATMP(:,3)=ZHP
+
+      ATOT = MATMUL(ATMP,ATOT)
+
+      IF(.NOT.APPLIED)THEN
+        DO I=1,NUMATM
+            GEO(2,I)=GEO(2,I)/DEGREE
+            GEO(3,I)=GEO(3,I)/DEGREE
+        END DO
+
+        CALL GMETRY(GEO,COORD)
+
+        DO I=1,NUMATM
+            GEO(2,I)=GEO(2,I)*DEGREE
+            GEO(3,I)=GEO(3,I)*DEGREE
+        END DO
+      ENDIF
+C       Laurent End
+
       GEO(1,1)=0.D0
       GEO(2,1)=0.D0
       GEO(3,1)=0.D0
@@ -155,7 +342,7 @@ C
 *
 * BANGLE CALCULATES THE ANGLE BETWEEN ATOMS I,J, AND K. THE
 *        CARTESIAN COORDINATES ARE IN XYZ.
-*
+*IVAL,
 *********************************************************************
       D2IJ = (XYZ(1,I)-XYZ(1,J))**2+
      1       (XYZ(2,I)-XYZ(2,J))**2+
