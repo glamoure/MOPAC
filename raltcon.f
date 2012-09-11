@@ -902,12 +902,12 @@ C     FIRST INFO ON THIS LINE IS A TRANSLATION
             IF(MOVE)THEN
             TMPDEP=DEP(ONE)
 
-            DO I=PJ,2,-1
+            DO I=ONE,2,-1
                 PR(I)=PR(I-1)
                 DEP(I)=DEP(I-1)
             ENDDO
             DEP(1)=TMPDEP
-            PR(1)=ONE
+            PR(1)=PI
             CALL CALCPRT()
             ENDIF
          ENDIF
@@ -927,9 +927,10 @@ C     FIRST INFO ON THIS LINE IS A TRANSLATION
                     DEP(I)=DEP(I-1)
                 ENDDO
                 DEP(2)=TMPDEP
-                PR(2)=TMPIND
+                PR(2)=PJ
                 CALL CALCPRT()
                 ENDIF
+!!!!!!!!!!!!Don't do the third one!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                IF(MOVE)THEN
 !                    THREE=MAX(PRT(PJ),PRT(PK))
 !                    DO I=THREE-1,3,-1

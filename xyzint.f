@@ -224,7 +224,8 @@ C  DEFINING THE DIHEDRAL.
      2          (XYZ(3,I1)-XYZ(3,K))**2
                IF(R.LT.SUM.AND.I1.NE.J.AND.I1.NE.K) THEN
                   CALL BANGLE(XYZ,J,K,I1,ANGL)
-                  IF(ANGL.LT.3.1415926D0-TOL.AND.ANGL.GT.TOL)THEN
+                  IF(ANGL.LT.3.1415926D0-TOL.AND.ANGL.GT.TOL
+     1             .AND.I1.NE.NB(II).AND.I1.NE.NA(II))THEN
                      SUM=R
                      L=I1
                      NC(II)=L
